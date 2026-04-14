@@ -18,6 +18,7 @@ module.exports = [
       'comma-dangle': ['error', 'always-multiline'],
       'no-console': ['error', { 'allow': ['warn', 'error', 'info'] }],
       'no-unused-vars': 'warn',
+      'indent': ['error', 2],
     },
   },
 ];

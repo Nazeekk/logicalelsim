@@ -3,6 +3,7 @@ import api from '../api/axios';
 
 export const useCircuitStore = create((set, get) => ({
   circuits: [],
+  currentCircuit: null,
   isLoading: false,
   error: null,
 
@@ -46,5 +47,34 @@ export const useCircuitStore = create((set, get) => ({
     } catch (error) {
       console.error('Failed to delete circuit:', error);
     }
+  },
+
+  fetchCircuitById: async (id) => {
+    set({isLoading: true, error: null});
+    try {
+      const response = await api.get(`/circuits/${id}`);
+      set({ currentCircuit: response.data, isLoading: false });
+    } catch(error) {
+      set({
+        error: error.response?.data?.message || 'Failed to fetch circuit',
+        isLoading: false,
+      });
+    }
+  },
+
+  saveCircuitData: async (id, nodes, edges) => {
+    try {
+      await api.put(`/circuits/${id}`, {
+        data: { nodes, edges },
+      });
+    } catch (error) {
+      console.error('Failed to save circuit:', error);
+    }
+  },
+  
+  clearCurrentCircuit: () => set({ currentCircuit: null }),
+
+  toggleNodeValue: (nodeId) => {
+    
   },
 }));
