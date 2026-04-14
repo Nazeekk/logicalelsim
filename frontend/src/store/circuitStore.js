@@ -1,0 +1,50 @@
+import { create } from 'zustand';
+import api from '../api/axios';
+
+export const useCircuitStore = create((set, get) => ({
+  circuits: [],
+  isLoading: false,
+  error: null,
+
+  fetchCircuits: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.get('/circuits');
+      set({ circuits: response.data, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || 'Failed to fetch circuits', 
+        isLoading: false, 
+      });
+    }
+  },
+
+  createCircuit: async (name) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post('/circuits', { name });
+      set((state) => ({ 
+        circuits: [response.data, ...state.circuits],
+        isLoading: false, 
+      }));
+      return response.data;
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || 'Failed to create circuit', 
+        isLoading: false, 
+      });
+      return null;
+    }
+  },
+
+  deleteCircuit: async (id) => {
+    try {
+      await api.delete(`/circuits/${id}`);
+      set((state) => ({
+        circuits: state.circuits.filter((circuit) => circuit._id !== id),
+      }));
+    } catch (error) {
+      console.error('Failed to delete circuit:', error);
+    }
+  },
+}));
