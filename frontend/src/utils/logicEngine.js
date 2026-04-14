@@ -1,22 +1,28 @@
 export const evaluateCircuit = (nodes, edges) => {
   const nodeMap = new Map();
+  
   nodes.forEach(node => {
-    nodeMap.set(node.id, { ...node, data: { ...node.data } });
-  });
+    const nodeCopy = { ...node, data: { ...node.data } };
 
-  nodes.forEach(node => {
-    if (node.type !== 'switch') {
-      nodeMap.get(node.id).data.value = false;
+    if (node.type === 'switch') {
+    } else if (node.type === 'not') {
+      nodeCopy.data.value = true;
+    } else {
+      nodeCopy.data.value = false;
     }
+    
+    nodeCopy._inputs = {}; 
+    
+    nodeMap.set(node.id, nodeCopy);
   });
 
   const evaluatedEdges = edges.map(edge => ({
     ...edge,
     data: { ...edge.data, value: false },
-    style: { stroke: '#94a3b8', strokeWidth: 2 }, 
+    style: { stroke: '#94a3b8', strokeWidth: 2 },
     animated: false,
   }));
-  
+
   let changed = true;
   let iterations = 0;
   const MAX_ITERATIONS = 100;
@@ -37,7 +43,7 @@ export const evaluateCircuit = (nodes, edges) => {
         edge.data.value = sourceValue;
         
         if (sourceValue) {
-          edge.style = { stroke: '#fbbf24', strokeWidth: 3, filter: 'drop-shadow(0 0 5px rgba(251, 191, 36, 0.5))' }; // Жовтий, світиться
+          edge.style = { stroke: '#fbbf24', strokeWidth: 3, filter: 'drop-shadow(0 0 5px rgba(251, 191, 36, 0.5))' };
           edge.animated = true;
         } else {
           edge.style = { stroke: '#94a3b8', strokeWidth: 2 };
@@ -46,17 +52,51 @@ export const evaluateCircuit = (nodes, edges) => {
         changed = true;
       }
 
-      if (targetNode.type === 'bulb' && sourceValue === true) {
-        if (targetNode.data.value !== true) {
-          targetNode.data.value = true;
-          changed = true;
-        }
+      const handleId = edge.targetHandle || 'default';
+      targetNode._inputs[handleId] = sourceValue;
+    });
+
+    Array.from(nodeMap.values()).forEach(node => {
+      if (node.type === 'switch') return;
+
+      let newValue = false;
+
+      if (node.type === 'and') {
+        const inA = node._inputs['a'] || false;
+        const inB = node._inputs['b'] || false;
+        newValue = inA && inB;
+      }
+
+      else if (node.type === 'or') {
+        const inA = node._inputs['a'] || false;
+        const inB = node._inputs['b'] || false;
+        newValue = inA || inB;
+      }
+
+      else if (node.type === 'not') {
+        const inDefault = node._inputs['default'] || false;
+        newValue = !inDefault;
+      }
+
+      else if (node.type === 'bulb') {
+        newValue = Object.values(node._inputs).some(val => val === true);
+      }
+
+      if (node.data.value !== newValue) {
+        node.data.value = newValue;
+        changed = true;
       }
     });
   }
 
+  const finalNodes = Array.from(nodeMap.values()).map(n => {
+    const cleanNode = { ...n };
+    delete cleanNode._inputs;
+    return cleanNode;
+  });
+
   return {
-    evaluatedNodes: Array.from(nodeMap.values()),
+    evaluatedNodes: finalNodes,
     evaluatedEdges: evaluatedEdges,
   };
 };
