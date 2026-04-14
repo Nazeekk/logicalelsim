@@ -20,7 +20,7 @@ export const useAuthStore = create((set) => ({
     } catch (error) {
       set({ 
         error: error.response?.data?.message || 'Registration failed', 
-        isLoading: false 
+        isLoading: false, 
       });
     }
   },
@@ -38,7 +38,7 @@ export const useAuthStore = create((set) => ({
     } catch (error) {
       set({ 
         error: error.response?.data?.message || 'Login failed', 
-        isLoading: false 
+        isLoading: false, 
       });
     }
   },

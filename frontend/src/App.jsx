@@ -1,8 +1,8 @@
-// import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import { useAuthStore } from './store/authStore';
+import './index.css';
 
 const ProtectedRoute = ({ children }) => {
   const token = useAuthStore((state) => state.token);
