@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./core/database');
 const authRoutes = require('./routes/auth');
+const circuitsRoutes = require('./routes/circuits');
 
 const { port } = require('./config');
 
@@ -17,6 +18,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/circuits', circuitsRoutes);
 
 app.listen(port, () => {
   console.info(`Server is running on port ${port}`);

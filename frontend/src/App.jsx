@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
+import Editor from './pages/Editor';
 import { useAuthStore } from './store/authStore';
 import './index.css';
 
@@ -35,6 +36,14 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/editor/:id"
+          element={
+            <ProtectedRoute>
+              <Editor />
+            </ProtectedRoute>
+          }
         />
       </Routes>
     </BrowserRouter>
