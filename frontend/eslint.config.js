@@ -32,7 +32,8 @@ export default defineConfig([
       'semi': ['error', 'always'],
       'quotes': ['error', 'single'],
       'comma-dangle': ['error', 'always-multiline'],
-      'no-console': 'warn',
+      'no-console': ['error', { 'allow': ['warn', 'error', 'info'] }],
+      'indent': ['error', 2],
     },
   },
 ]);
