@@ -1,7 +1,7 @@
 import { Handle, Position } from 'reactflow';
 import { useCircuitStore } from '../../../store/circuitStore';
 
-const SwitchNode = ({ id, data }) => {
+const SwitchNode = ({ id, data, selected }) => {
   const toggleNodeValue = useCircuitStore((state) => state.toggleNodeValue);
 
   const isActive = data?.value || false;
@@ -11,7 +11,8 @@ const SwitchNode = ({ id, data }) => {
       ${isActive 
       ? 'bg-emerald-500 border-emerald-400 shadow-emerald-500/30' 
       : 'bg-slate-700 border-slate-600 shadow-slate-900/50'
-    }`}
+    }
+      ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
     onClick={() => toggleNodeValue(id)}
     >
       <span className="text-white font-bold text-xs pointer-events-none select-none">

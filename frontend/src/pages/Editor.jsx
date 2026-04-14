@@ -18,6 +18,7 @@ import NOTNode from '@/components/editor/nodes/NOTNode';
 
 import { useCircuitStore } from '../store/circuitStore';
 import { evaluateCircuit } from '@/utils/logicEngine';
+import toast from 'react-hot-toast';
 
 const nodeTypes = {
   switch: SwitchNode,
@@ -124,6 +125,36 @@ const Editor = () => {
     [],
   );
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+        event.preventDefault();
+
+        const selectedNodes = nodes.filter(node => node.selected);
+        if (selectedNodes.length === 0) return;
+
+        const newNodes = selectedNodes.map(node => ({
+          ...node,
+          id: `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          position: { x: node.position.x + 50, y: node.position.y + 50 },
+          selected: true,
+          data: { ...node.data },
+        }));
+
+        setNodes(nds => [
+          ...nds.map(n => ({ ...n, selected: false })), 
+          ...newNodes,
+        ]);
+        
+        toast.success(`Duplicated ${newNodes.length} items`);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, setNodes]);
+
+
   const onEdgesChange = useCallback(
     (changes) => {
       setEdges((eds) => {
@@ -164,7 +195,15 @@ const Editor = () => {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await saveCircuitData(id, nodes, edges);
+    const savePromise = saveCircuitData(id, nodes, edges);
+
+    toast.promise(savePromise, {
+      loading: 'Saving circuit...',
+      success: 'Circuit saved successfully!',
+      error: 'Failed to save.',
+    });
+
+    await savePromise;
     setIsSaving(false);
   };
 

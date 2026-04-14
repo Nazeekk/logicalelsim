@@ -1,11 +1,12 @@
 import { Handle, Position } from 'reactflow';
 
-const ANDNode = ({ data }) => {
+const ANDNode = ({ data, selected }) => {
   const isActive = data?.value || false;
 
   return (
     <div className={`relative w-20 h-16 rounded-r-full rounded-l-md border-2 flex items-center justify-center transition-all duration-200 bg-slate-800 shadow-lg
-      ${isActive ? 'border-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.4)]' : 'border-slate-600'}`}
+      ${isActive ? 'border-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.4)]' : 'border-slate-600'}
+      ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
     >
       <span className={`font-bold text-sm select-none ${isActive ? 'text-blue-400' : 'text-slate-400'}`}>
         AND
