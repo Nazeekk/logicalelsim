@@ -7,7 +7,7 @@ import './index.css';
 const ProtectedRoute = ({ children }) => {
   const token = useAuthStore((state) => state.token);
   if (!token) return <Navigate to="/" replace />;
-  // return children;
+  return children;
 };
 
 const PublicRoute = ({ children }) => {
