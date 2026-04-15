@@ -1,14 +1,14 @@
 import { Handle, Position } from 'reactflow';
 
-const BulbNode = ({ data }) => {
+const BulbNode = ({ data, selected }) => {
   const isActive = data?.value || false;
 
   return (
     <div className={`relative w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 shadow-lg
       ${isActive 
       ? 'bg-yellow-400 border-yellow-300 shadow-[0_0_30px_rgba(250,204,21,0.6)]' 
-      : 'bg-slate-800 border-slate-600 shadow-slate-900/50'
-    }`}
+      : 'bg-slate-800 border-slate-600 shadow-slate-900/50'}
+      ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
     >
       <svg 
         className={`w-8 h-8 ${isActive ? 'text-white' : 'text-slate-600'}`} 

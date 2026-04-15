@@ -1,10 +1,12 @@
 import { Handle, Position } from 'reactflow';
 
-const NOTNode = ({ data }) => {
+const NOTNode = ({ data, selected }) => {
   const isActive = data?.value || false;
 
   return (
-    <div className={'relative w-0 h-0 flex items-center justify-center transition-all duration-200'}
+    <div
+      className={`relative w-0 h-0 flex items-center justify-center transition-all duration-200
+            ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
       style={{
         borderTop: '25px solid transparent',
         borderBottom: '25px solid transparent',

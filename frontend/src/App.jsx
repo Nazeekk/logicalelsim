@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
 import { useAuthStore } from './store/authStore';
 import './index.css';
+import { Toaster } from 'react-hot-toast';
 
 const ProtectedRoute = ({ children }) => {
   const token = useAuthStore((state) => state.token);
@@ -20,6 +21,7 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position='bottom-right' toastOptions={{ className: 'text-sm font-medium' }} />
       <Routes>
         <Route 
           path="/" 
