@@ -7,6 +7,7 @@ import ReactFlow, {
   applyEdgeChanges,
   addEdge,
   Panel,
+  useUpdateNodeInternals,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -15,6 +16,11 @@ import BulbNode from '@/components/editor/nodes/BulbNode';
 import ANDNode from '@/components/editor/nodes/ANDNode';
 import ORNode from '@/components/editor/nodes/ORNode';
 import NOTNode from '@/components/editor/nodes/NOTNode';
+import NANDNode from '@/components/editor/nodes/NANDNode';
+import NORNode from '@/components/editor/nodes/NORNode';
+import XORNode from '@/components/editor/nodes/XORNode';
+import XNORNode from '@/components/editor/nodes/XNORNode';
+import MacroNode from '@/components/editor/nodes/MacroNode';
 
 import { useCircuitStore } from '../store/circuitStore';
 import { evaluateCircuit } from '@/utils/logicEngine';
@@ -28,6 +34,11 @@ const nodeTypes = {
   and: ANDNode,
   or: ORNode,
   not: NOTNode,
+  nand: NANDNode,
+  nor: NORNode,
+  xor: XORNode,
+  xnor: XNORNode,
+  macro: MacroNode,
 };
 
 const Editor = () => {
@@ -39,14 +50,23 @@ const Editor = () => {
     saveCircuitData,
     clearCurrentCircuit,
     isLoading,
+    circuits,
+    fetchCircuits,
+    renameCircuit,
   } = useCircuitStore();
 
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [isMacro, setIsMacro] = useState(false);
+  const [category, setCategory] = useState('Custom');
   
   const { takeSnapshot, undo, redo, canUndo, canRedo } = useHistory();
+  const updateNodeInternals = useUpdateNodeInternals();
   const [contextMenu, setContextMenu] = useState(null);
+  const [edgeContextMenu, setEdgeContextMenu] = useState(null);
 
   const isValidConnection = useCallback(
     (connection) => {
@@ -91,6 +111,18 @@ const Editor = () => {
     [setNodes, setEdges],
   );
 
+  const updateNodeLabel = useCallback((nodeId, newLabel) => {
+    takeSnapshot(nodes, edges);
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, label: newLabel } };
+        }
+        return node;
+      }),
+    );
+  }, [nodes, edges, takeSnapshot, setNodes]);
+
   const addNode = (type) => {
     takeSnapshot(nodes, edges);
     const newNode = {
@@ -102,6 +134,35 @@ const Editor = () => {
 
     setNodes((nds) => [...nds, newNode]);
   };
+
+  const addMacro = (savedCircuit) => {
+    takeSnapshot(nodes, edges);
+    
+    const circuitTemplate = JSON.parse(JSON.stringify(savedCircuit.data));
+    
+    const newNode = {
+      id: `macro-${Date.now()}`,
+      type: 'macro',
+      position: { x: Math.random() * 200 + 300, y: Math.random() * 200 + 100 },
+      data: { 
+        name: savedCircuit.name,
+        circuit: circuitTemplate,
+        macroOutputs: {},
+      },
+    };
+    
+    setNodes((nds) => {
+      const newNodes = [...nds, newNode];
+      const { evaluatedNodes } = evaluateCircuit(newNodes, edges);
+      return evaluatedNodes;
+    });
+    
+    toast.success(`${savedCircuit.name} imported!`);
+  };
+
+  useEffect(() => {
+    if (circuits.length === 0) fetchCircuits();
+  }, [circuits.length, fetchCircuits]);
 
   useEffect(() => {
     fetchCircuitById(id);
@@ -124,8 +185,16 @@ const Editor = () => {
   }, [currentCircuit]);
 
   useEffect(() => {
-    useCircuitStore.setState({ toggleNodeValue });
-  }, [toggleNodeValue]);
+    if (currentCircuit) {
+      setTempName(currentCircuit.name);
+      setIsMacro(currentCircuit.isMacro || false);
+      setCategory(currentCircuit.category || 'Custom');
+    }
+  }, [currentCircuit]);
+
+  useEffect(() => {
+    useCircuitStore.setState({ toggleNodeValue, updateNodeLabel });
+  }, [toggleNodeValue, updateNodeLabel]);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -154,7 +223,16 @@ const Editor = () => {
     });
   }, []);
 
-  const onPaneClick = useCallback(() => setContextMenu(null), []);
+  const onEdgeContextMenu = useCallback((event, edge) => {
+    event.preventDefault();
+    setEdgeContextMenu({ id: edge.id, top: event.clientY, left: event.clientX });
+    setContextMenu(null);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+    setEdgeContextMenu(null);
+  }, []);
 
   const handleUndo = useCallback(() => {
     const previous = undo(nodes, edges);
@@ -178,26 +256,25 @@ const Editor = () => {
     const selectedNodes = nodes.filter(node => node.selected);
     if (selectedNodes.length === 0) return;
 
-    takeSnapshot(nodes, edges);
-
+    // 1. Словник ID та нові вузли
     const idMap = new Map();
     const newNodes = selectedNodes.map(node => {
       const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
       idMap.set(node.id, newId);
-      
       return {
-        ...node,
-        id: newId,
+        ...node, id: newId,
         position: { x: node.position.x + 40, y: node.position.y + 40 },
-        selected: true,
+        selected: true, // НОВІ виділені
         data: { ...node.data },
       };
     });
 
-    const internalEdges = edges.filter(
-      edge => idMap.has(edge.source) && idMap.has(edge.target),
-    );
+    // 2. Знімаємо виділення зі старих
+    const oldNodesDeselected = nodes.map(n => ({ ...n, selected: false }));
+    const combinedNodes = [...oldNodesDeselected, ...newNodes];
 
+    // 3. Дублюємо внутрішні проводи
+    const internalEdges = edges.filter(edge => idMap.has(edge.source) && idMap.has(edge.target));
     const newEdges = internalEdges.map(edge => ({
       ...edge,
       id: `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -206,24 +283,51 @@ const Editor = () => {
       selected: true,
     }));
 
-    setNodes(nds => [
-      ...nds.map(n => ({ ...n, selected: false })), 
-      ...newNodes,
-    ]);
-    
-    setEdges(eds => {
-      const updatedEdges = [
-        ...eds.map(e => ({ ...e, selected: false })),
-        ...newEdges,
-      ];
-      
-      const { evaluatedNodes, evaluatedEdges } = evaluateCircuit([...nodes, ...newNodes], updatedEdges);
-      setTimeout(() => setNodes(evaluatedNodes), 0);
-      return evaluatedEdges;
-    });
+    const combinedEdges = [...edges.map(e => ({ ...e, selected: false })), ...newEdges];
 
-    toast.success(`Duplicated ${newNodes.length} nodes & ${newEdges.length} connections`);
+    // 4. ОДИН раз запускаємо симуляцію з ПРАВИЛЬНИМИ даними
+    const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(combinedNodes, combinedEdges);
+
+    takeSnapshot(nodes, edges);
+    setNodes(evaluatedNodes);
+    setEdges(evaluatedEdges);
+
+    toast.success(`Duplicated ${newNodes.length} items`);
   }, [nodes, edges, takeSnapshot, setNodes, setEdges]);
+
+  const handleSettingsSubmit = async () => {
+    setIsRenaming(false);
+    const finalName = tempName.trim() ? tempName : currentCircuit.name;
+
+    await renameCircuit(id, { name: finalName, isMacro, category });
+    toast.success('Settings saved!');
+  };
+
+  const handleRotate = useCallback(() => {
+    const selectedNodes = nodes.filter(node => node.selected);
+    if (selectedNodes.length === 0) return;
+
+    takeSnapshot(nodes, edges);
+    
+    setNodes(nds => {
+      const newNodes = nds.map(node => {
+        if (node.selected) {
+          const currentRotation = node.data.rotation || 0;
+          return {
+            ...node,
+            data: { ...node.data, rotation: (currentRotation + 90) % 360 },
+          };
+        }
+        return node;
+      });
+      
+      setTimeout(() => {
+        selectedNodes.forEach(n => updateNodeInternals(n.id));
+      }, 210);
+
+      return newNodes;
+    });
+  }, [nodes, edges, takeSnapshot, setNodes, updateNodeInternals]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -243,6 +347,13 @@ const Editor = () => {
       if ((ctrlOrCmd && event.key === 'y') || (ctrlOrCmd && event.shiftKey && event.key === 'Z')) {
         event.preventDefault();
         handleRedo();
+      }
+
+      if (event.key === 'r' || event.key === 'R') {
+        if (document.activeElement.tagName !== 'INPUT') {
+          event.preventDefault();
+          handleRotate();
+        }
       }
     };
 
@@ -322,9 +433,37 @@ const Editor = () => {
             ← Back
           </button>
           <span className='text-slate-400'>|</span>
-          <h1 className='text-white font-medium truncate max-w-[200px]'>
-            {currentCircuit?.name || 'Loading...'}
-          </h1>
+          {isRenaming ? (
+            <div className="flex items-center gap-2 bg-slate-800 p-1 rounded border border-slate-600">
+              <input
+                autoFocus
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                className="bg-slate-700 text-white px-2 py-1 rounded outline-none border border-slate-500 text-sm w-40"
+              />
+              <label className="text-xs text-slate-300 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={isMacro} onChange={e => setIsMacro(e.target.checked)} />
+                Publish as Macro
+              </label>
+              {isMacro && (
+                <select value={category} onChange={e => setCategory(e.target.value)} className="bg-slate-700 text-xs text-white rounded p-1">
+                  <option>Custom</option>
+                  <option>Arithmetic</option>
+                  <option>Memory</option>
+                </select>
+              )}
+              <button onClick={handleSettingsSubmit} className="bg-blue-600 text-xs px-2 py-1 rounded hover:bg-blue-500 text-white">Save</button>
+            </div>
+          ) : (
+            <div className="flex flex-col cursor-text hover:bg-slate-700 px-2 py-1 rounded transition" onDoubleClick={() => setIsRenaming(true)} title="Double click to edit settings">
+              <h1 className="text-white font-medium truncate max-w-[200px] leading-tight">
+                {currentCircuit?.name || 'Loading...'}
+              </h1>
+              <span className="text-[10px] text-slate-400">
+                {currentCircuit?.isMacro ? `Macro (${currentCircuit.category})` : 'Private Circuit'}
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={handleSave}
@@ -345,6 +484,7 @@ const Editor = () => {
           onConnect={onConnect}
           onNodeDragStart={onNodeDragStart}
           onNodeContextMenu={onNodeContextMenu}
+          onEdgeContextMenu={onEdgeContextMenu}
           onPaneClick={onPaneClick}
           isValidConnection={isValidConnection}
           panOnScroll={true}
@@ -401,6 +541,49 @@ const Editor = () => {
               className='flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg transition text-sm text-left border border-slate-600 font-bold'
             >
               <span className='text-rose-400'>NOT</span> Gate
+            </button>
+
+            <div className="h-px bg-slate-700 my-1"></div>
+
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                onClick={() => addNode('nand')}
+                className="bg-slate-700 hover:bg-slate-600 text-cyan-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
+              >
+                NAND
+              </button>
+
+              <button
+                onClick={() => addNode('nor')}
+                className="bg-slate-700 hover:bg-slate-600 text-pink-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
+              >
+                NOR
+              </button>
+              
+              <button
+                onClick={() => addNode('xor')}
+                className="bg-slate-700 hover:bg-slate-600 text-orange-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
+              >
+                XOR
+              </button>
+              
+              <button
+                onClick={() => addNode('xnor')}
+                className="bg-slate-700 hover:bg-slate-600 text-teal-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
+              >
+                XNOR
+              </button>
+            </div>
+
+            <div className="h-px bg-slate-700 my-2"></div>
+            
+            <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1 px-1">Macro Library</div>
+            <button 
+              onClick={() => document.getElementById('macro-modal').showModal()}
+              className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 font-bold px-3 py-2 rounded-lg transition text-sm flex justify-center items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              Browse IC Library
             </button>
 
             <div className="h-px bg-slate-700 my-1"></div>
@@ -483,6 +666,13 @@ const Editor = () => {
               </svg>
             </button>
             <button 
+              onClick={handleRotate}
+              title="Rotate Selected (R)"
+              className="p-2 text-green-400 hover:text-green-300 hover:bg-slate-700 rounded transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+            <button 
               onClick={() => {
                 const selectedNodes = nodes.filter(n => n.selected);
                 if(selectedNodes.length > 0 && window.confirm('Delete selected?')) {
@@ -525,7 +715,9 @@ const Editor = () => {
             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 flex justify-between items-center"
             onClick={() => {
               takeSnapshot(nodes, edges);
-              setNodes(nds => nds.filter(n => n.id !== contextMenu.id));
+              const nodeId = contextMenu.id;
+              setNodes(nds => nds.filter(n => n.id !== nodeId));
+              setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
               setContextMenu(null);
             }}
           >
@@ -533,6 +725,61 @@ const Editor = () => {
           </button>
         </div>
       )}
+
+      {edgeContextMenu && (
+        <div className="fixed bg-slate-800 border border-slate-700 shadow-2xl rounded-lg py-1 z-50 min-w-[150px]" style={{ top: edgeContextMenu.top, left: edgeContextMenu.left }}>
+          <button 
+            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 flex justify-between items-center"
+            onClick={() => {
+              takeSnapshot(nodes, edges);
+              setEdges(eds => eds.filter(e => e.id !== edgeContextMenu.id));
+              setEdgeContextMenu(null);
+            }}
+          >
+            Delete Wire <span className="text-slate-500 text-xs">Del</span>
+          </button>
+        </div>
+      )}
+
+      <dialog id="macro-modal" className="bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-0 backdrop:bg-black/60 backdrop:backdrop-blur-sm w-[500px]">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+          <h2 className="text-white font-bold text-lg">Integrated Circuits Library</h2>
+          <button onClick={() => document.getElementById('macro-modal').close()} className="text-slate-400 hover:text-white">✕</button>
+        </div>
+        
+        <div className="p-4 max-h-[400px] overflow-y-auto">
+          {['Arithmetic', 'Memory', 'Custom'].map(cat => {
+            const catCircuits = circuits.filter(c => c._id !== id && c.isMacro && c.category === cat);
+            if (catCircuits.length === 0) return null;
+            
+            return (
+              <div key={cat} className="mb-4">
+                <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">{cat}</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {catCircuits.map(circuit => (
+                    <button 
+                      key={circuit._id}
+                      onClick={() => {
+                        addMacro(circuit);
+                        document.getElementById('macro-modal').close();
+                      }}
+                      className="flex justify-between items-center bg-slate-900 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition border border-slate-700 hover:border-blue-500"
+                    >
+                      <span className="truncate">{circuit.name}</span>
+                      <span className="text-[9px] bg-blue-900/50 text-blue-300 px-1.5 rounded border border-blue-800">Add</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {circuits.filter(c => c.isMacro && c._id !== id).length === 0 && (
+            <div className="text-center text-slate-500 py-8">
+              No macros published yet. <br/> Edit settings of your circuits to publish them.
+            </div>
+          )}
+        </div>
+      </dialog>
     </div>
   );
 };

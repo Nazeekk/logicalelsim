@@ -5,6 +5,7 @@ import Editor from './pages/Editor';
 import { useAuthStore } from './store/authStore';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
+import { ReactFlowProvider } from 'reactflow';
 
 const ProtectedRoute = ({ children }) => {
   const token = useAuthStore((state) => state.token);
@@ -43,7 +44,9 @@ function App() {
           path="/editor/:id"
           element={
             <ProtectedRoute>
-              <Editor />
+              <ReactFlowProvider>
+                <Editor />
+              </ReactFlowProvider>
             </ProtectedRoute>
           }
         />

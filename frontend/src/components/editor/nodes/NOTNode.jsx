@@ -2,6 +2,7 @@ import { Handle, Position } from 'reactflow';
 
 const NOTNode = ({ data, selected }) => {
   const isActive = data?.value || false;
+  const rotation = data?.rotation || 0;
 
   return (
     <div
@@ -11,6 +12,7 @@ const NOTNode = ({ data, selected }) => {
         borderTop: '25px solid transparent',
         borderBottom: '25px solid transparent',
         borderLeft: `45px solid ${isActive ? '#f43f5e' : '#475569'}`,
+        transform: `rotate(${rotation}deg)`,
       }}
     >
       <div className={`absolute -right-[10px] top-[-5px] w-[10px] h-[10px] rounded-full border-2 bg-slate-800 transition-all duration-200
