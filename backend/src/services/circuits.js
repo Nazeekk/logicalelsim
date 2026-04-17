@@ -18,7 +18,7 @@ class CircuitsService {
     const defaultData = { nodes: [], edges: [] };
     return await circuitsRepository.create({
       userId,
-      name: name || 'Untitled Circuit',
+      name,
       data: defaultData,
     });
   }
