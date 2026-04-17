@@ -12,15 +12,15 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post('/auth/register', { email, password });
       const { user, token } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       set({ user, token, isLoading: false });
     } catch (error) {
-      set({ 
-        error: error.response?.data?.message || 'Registration failed', 
-        isLoading: false, 
+      set({
+        error: error.response?.data?.message || 'Registration failed',
+        isLoading: false,
       });
     }
   },
@@ -30,15 +30,15 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post('/auth/login', { email, password });
       const { user, token } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       set({ user, token, isLoading: false });
     } catch (error) {
-      set({ 
-        error: error.response?.data?.message || 'Login failed', 
-        isLoading: false, 
+      set({
+        error: error.response?.data?.message || 'Login failed',
+        isLoading: false,
       });
     }
   },

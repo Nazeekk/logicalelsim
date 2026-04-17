@@ -21,5 +21,5 @@ app.use('/api/auth', authRoutes);
 app.use('/api/circuits', circuitsRoutes);
 
 app.listen(port, () => {
-  console.info(`Server is running on port ${port}`);
+  console.info(`Server is running on port ${ port }`);
 });

@@ -6,7 +6,7 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   const { login, register, error, isLoading } = useAuthStore();
   const navigate = useNavigate();
 
@@ -17,7 +17,7 @@ const AuthPage = () => {
     } else {
       await register(email, password);
     }
-    
+
     const hasError = useAuthStore.getState().error;
     if (!hasError) {
       navigate('/dashboard');
@@ -45,30 +45,30 @@ const AuthPage = () => {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
               placeholder="name@company.com"
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
               placeholder="••••••••"
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isLoading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition duration-200 disabled:opacity-50"
           >
@@ -77,8 +77,8 @@ const AuthPage = () => {
         </form>
 
         <div className="mt-6 text-center">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
           >

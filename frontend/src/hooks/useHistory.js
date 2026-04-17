@@ -9,13 +9,13 @@ export const useHistory = () => {
       ...prev,
       { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) },
     ].slice(-50));
-    
+
     setFuture([]);
   }, []);
 
   const undo = useCallback((currentNodes, currentEdges) => {
     if (past.length === 0) return null;
-    
+
     const previous = past[past.length - 1];
     setPast((prev) => prev.slice(0, -1));
     setFuture((prev) => [
@@ -27,7 +27,7 @@ export const useHistory = () => {
 
   const redo = useCallback((currentNodes, currentEdges) => {
     if (future.length === 0) return null;
-    
+
     const next = future[0];
     setFuture((prev) => prev.slice(1));
     setPast((prev) => [

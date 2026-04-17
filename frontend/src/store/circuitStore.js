@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import api from '../api/axios';
 
-export const useCircuitStore = create((set, get) => ({
+export const useCircuitStore = create((set, _get) => ({
   circuits: [],
   currentCircuit: null,
   isLoading: false,
@@ -9,13 +9,14 @@ export const useCircuitStore = create((set, get) => ({
 
   fetchCircuits: async () => {
     set({ isLoading: true, error: null });
+
     try {
       const response = await api.get('/circuits');
       set({ circuits: response.data, isLoading: false });
     } catch (error) {
-      set({ 
-        error: error.response?.data?.message || 'Failed to fetch circuits', 
-        isLoading: false, 
+      set({
+        error: error.response?.data?.message || 'Failed to fetch circuits',
+        isLoading: false,
       });
     }
   },
@@ -24,15 +25,15 @@ export const useCircuitStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/circuits', { name });
-      set((state) => ({ 
+      set((state) => ({
         circuits: [response.data, ...state.circuits],
-        isLoading: false, 
+        isLoading: false,
       }));
       return response.data;
     } catch (error) {
-      set({ 
-        error: error.response?.data?.message || 'Failed to create circuit', 
-        isLoading: false, 
+      set({
+        error: error.response?.data?.message || 'Failed to create circuit',
+        isLoading: false,
       });
       return null;
     }
@@ -50,7 +51,7 @@ export const useCircuitStore = create((set, get) => ({
   },
 
   fetchCircuitById: async (id) => {
-    set({isLoading: true, error: null});
+    set({ isLoading: true, error: null });
     try {
       const response = await api.get(`/circuits/${id}`);
       set({ currentCircuit: response.data, isLoading: false });
@@ -71,16 +72,16 @@ export const useCircuitStore = create((set, get) => ({
       console.error('Failed to save circuit:', error);
     }
   },
-  
+
   clearCurrentCircuit: () => set({ currentCircuit: null }),
 
   renameCircuit: async (id, updateData) => {
     try {
       await api.put(`/circuits/${id}`, updateData);
-      
+
       set((state) => ({
         currentCircuit: { ...state.currentCircuit, ...updateData },
-        circuits: state.circuits.map(c => c._id === id ? { ...c, ...updateData } : c),
+        circuits: state.circuits.map((c) => c._id === id ? { ...c, ...updateData } : c),
       }));
     } catch (error) {
       console.error('Failed to rename circuit:', error);

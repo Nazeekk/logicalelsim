@@ -8,10 +8,10 @@ const NANDNode = ({ data, selected }) => {
     <div className={`relative w-20 h-16 rounded-r-full rounded-l-md border-2 flex items-center justify-center transition-all duration-200 bg-slate-800 shadow-lg
       ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 'border-slate-600'}
       ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
-    style={{ transform: `rotate(${rotation}deg)` }}
+      style={{ transform: `rotate(${rotation}deg)` }}
     >
       <span className={`font-bold text-sm select-none mr-2 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`}>NAND</span>
-      
+
       <div className={`absolute -right-[6px] w-[10px] h-[10px] rounded-full border-2 bg-slate-800 
         ${isActive ? 'border-cyan-400' : 'border-slate-600'}`}></div>
 

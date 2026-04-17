@@ -62,7 +62,7 @@ const Editor = () => {
   const [tempName, setTempName] = useState('');
   const [isMacro, setIsMacro] = useState(false);
   const [category, setCategory] = useState('Custom');
-  
+
   const { takeSnapshot, undo, redo, canUndo, canRedo } = useHistory();
   const updateNodeInternals = useUpdateNodeInternals();
   const [contextMenu, setContextMenu] = useState(null);
@@ -108,7 +108,7 @@ const Editor = () => {
         return newNodes;
       });
     },
-    [setNodes, setEdges],
+    [setNodes, setEdges, edges, nodes, takeSnapshot],
   );
 
   const updateNodeLabel = useCallback((nodeId, newLabel) => {
@@ -135,30 +135,30 @@ const Editor = () => {
     setNodes((nds) => [...nds, newNode]);
   };
 
-  const addMacro = (savedCircuit) => {
+  const addMacro = useCallback((savedCircuit) => {
     takeSnapshot(nodes, edges);
-    
+
     const circuitTemplate = JSON.parse(JSON.stringify(savedCircuit.data));
-    
+
     const newNode = {
       id: `macro-${Date.now()}`,
       type: 'macro',
       position: { x: Math.random() * 200 + 300, y: Math.random() * 200 + 100 },
-      data: { 
+      data: {
         name: savedCircuit.name,
         circuit: circuitTemplate,
         macroOutputs: {},
       },
     };
-    
+
     setNodes((nds) => {
       const newNodes = [...nds, newNode];
       const { evaluatedNodes } = evaluateCircuit(newNodes, edges);
       return evaluatedNodes;
     });
-    
+
     toast.success(`${savedCircuit.name} imported!`);
-  };
+  }, [nodes, edges, takeSnapshot, setNodes]);
 
   useEffect(() => {
     if (circuits.length === 0) fetchCircuits();
@@ -198,7 +198,7 @@ const Editor = () => {
 
   const onNodesChange = useCallback(
     (changes) => {
-      if (changes.some(c => c.type === 'remove')) {
+      if (changes.some((c) => c.type === 'remove')) {
         takeSnapshot(nodes, edges);
       }
 
@@ -211,11 +211,10 @@ const Editor = () => {
     takeSnapshot(nodes, edges);
   }, [nodes, edges, takeSnapshot]);
 
-
   const onNodeContextMenu = useCallback((event, node) => {
     event.preventDefault();
-    setNodes(nds => nds.map(n => ({ ...n, selected: n.id === node.id })));
-    
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === node.id })));
+
     setContextMenu({
       id: node.id,
       top: event.clientY,
@@ -253,29 +252,26 @@ const Editor = () => {
   }, [nodes, edges, redo]);
 
   const handleDuplicate = useCallback(() => {
-    const selectedNodes = nodes.filter(node => node.selected);
+    const selectedNodes = nodes.filter((node) => node.selected);
     if (selectedNodes.length === 0) return;
 
-    // 1. Словник ID та нові вузли
     const idMap = new Map();
-    const newNodes = selectedNodes.map(node => {
+    const newNodes = selectedNodes.map((node) => {
       const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
       idMap.set(node.id, newId);
       return {
         ...node, id: newId,
         position: { x: node.position.x + 40, y: node.position.y + 40 },
-        selected: true, // НОВІ виділені
+        selected: true,
         data: { ...node.data },
       };
     });
 
-    // 2. Знімаємо виділення зі старих
-    const oldNodesDeselected = nodes.map(n => ({ ...n, selected: false }));
+    const oldNodesDeselected = nodes.map((n) => ({ ...n, selected: false }));
     const combinedNodes = [...oldNodesDeselected, ...newNodes];
 
-    // 3. Дублюємо внутрішні проводи
-    const internalEdges = edges.filter(edge => idMap.has(edge.source) && idMap.has(edge.target));
-    const newEdges = internalEdges.map(edge => ({
+    const internalEdges = edges.filter((edge) => idMap.has(edge.source) && idMap.has(edge.target));
+    const newEdges = internalEdges.map((edge) => ({
       ...edge,
       id: `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       source: idMap.get(edge.source),
@@ -283,9 +279,8 @@ const Editor = () => {
       selected: true,
     }));
 
-    const combinedEdges = [...edges.map(e => ({ ...e, selected: false })), ...newEdges];
+    const combinedEdges = [...edges.map((e) => ({ ...e, selected: false })), ...newEdges];
 
-    // 4. ОДИН раз запускаємо симуляцію з ПРАВИЛЬНИМИ даними
     const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(combinedNodes, combinedEdges);
 
     takeSnapshot(nodes, edges);
@@ -304,13 +299,13 @@ const Editor = () => {
   };
 
   const handleRotate = useCallback(() => {
-    const selectedNodes = nodes.filter(node => node.selected);
+    const selectedNodes = nodes.filter((node) => node.selected);
     if (selectedNodes.length === 0) return;
 
     takeSnapshot(nodes, edges);
-    
-    setNodes(nds => {
-      const newNodes = nds.map(node => {
+
+    setNodes((nds) => {
+      const newNodes = nds.map((node) => {
         if (node.selected) {
           const currentRotation = node.data.rotation || 0;
           return {
@@ -320,9 +315,9 @@ const Editor = () => {
         }
         return node;
       });
-      
+
       setTimeout(() => {
-        selectedNodes.forEach(n => updateNodeInternals(n.id));
+        selectedNodes.forEach((n) => updateNodeInternals(n.id));
       }, 210);
 
       return newNodes;
@@ -343,7 +338,7 @@ const Editor = () => {
         event.preventDefault();
         handleUndo();
       }
-      
+
       if ((ctrlOrCmd && event.key === 'y') || (ctrlOrCmd && event.shiftKey && event.key === 'Z')) {
         event.preventDefault();
         handleRedo();
@@ -359,7 +354,7 @@ const Editor = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleDuplicate, handleUndo, handleRedo]);
+  }, [handleDuplicate, handleUndo, handleRedo, handleRotate]);
 
   const onEdgesChange = useCallback(
     (changes) => {
@@ -397,7 +392,7 @@ const Editor = () => {
         return evaluatedEdges;
       });
     },
-    [nodes, setNodes, setEdges],
+    [nodes, setNodes, setEdges, edges, takeSnapshot],
   );
 
   const handleSave = async () => {
@@ -442,11 +437,11 @@ const Editor = () => {
                 className="bg-slate-700 text-white px-2 py-1 rounded outline-none border border-slate-500 text-sm w-40"
               />
               <label className="text-xs text-slate-300 flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={isMacro} onChange={e => setIsMacro(e.target.checked)} />
+                <input type="checkbox" checked={isMacro} onChange={(e) => setIsMacro(e.target.checked)} />
                 Publish as Macro
               </label>
               {isMacro && (
-                <select value={category} onChange={e => setCategory(e.target.value)} className="bg-slate-700 text-xs text-white rounded p-1">
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="bg-slate-700 text-xs text-white rounded p-1">
                   <option>Custom</option>
                   <option>Arithmetic</option>
                   <option>Memory</option>
@@ -559,14 +554,14 @@ const Editor = () => {
               >
                 NOR
               </button>
-              
+
               <button
                 onClick={() => addNode('xor')}
                 className="bg-slate-700 hover:bg-slate-600 text-orange-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
               >
                 XOR
               </button>
-              
+
               <button
                 onClick={() => addNode('xnor')}
                 className="bg-slate-700 hover:bg-slate-600 text-teal-400 text-xs font-bold py-1.5 rounded transition border border-slate-600"
@@ -576,19 +571,31 @@ const Editor = () => {
             </div>
 
             <div className="h-px bg-slate-700 my-2"></div>
-            
+
             <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1 px-1">Macro Library</div>
-            <button 
+            <button
               onClick={() => document.getElementById('macro-modal').showModal()}
               className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 font-bold px-3 py-2 rounded-lg transition text-sm flex justify-center items-center gap-2"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
               Browse IC Library
             </button>
 
             <div className="h-px bg-slate-700 my-1"></div>
 
-            <button 
+            <button
               onClick={() => {
                 if(window.confirm('Clear the entire board?')) {
                   setNodes([]);
@@ -599,13 +606,13 @@ const Editor = () => {
             >
               Clear Board
             </button>
-            
+
             <div className="text-[10px] text-slate-500 text-center mt-2">
               Select item & press Del to remove
             </div>
           </Panel>
           <Panel position="top-center" className="bg-slate-800 p-1.5 rounded-lg border border-slate-700 shadow-xl flex gap-1 mt-2">
-            <button 
+            <button
               onClick={handleUndo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
@@ -625,7 +632,7 @@ const Editor = () => {
                 />
               </svg>
             </button>
-            <button 
+            <button
               onClick={handleRedo}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
@@ -646,7 +653,7 @@ const Editor = () => {
               </svg>
             </button>
             <div className="w-px bg-slate-700 mx-1 my-1"></div>
-            <button 
+            <button
               onClick={handleDuplicate}
               title="Duplicate Selected (Ctrl+D)"
               className="p-2 text-blue-400 hover:text-blue-300 hover:bg-slate-700 rounded transition"
@@ -665,18 +672,30 @@ const Editor = () => {
                 />
               </svg>
             </button>
-            <button 
+            <button
               onClick={handleRotate}
               title="Rotate Selected (R)"
               className="p-2 text-green-400 hover:text-green-300 hover:bg-slate-700 rounded transition"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+              </svg>
             </button>
-            <button 
+            <button
               onClick={() => {
-                const selectedNodes = nodes.filter(n => n.selected);
+                const selectedNodes = nodes.filter((n) => n.selected);
                 if(selectedNodes.length > 0 && window.confirm('Delete selected?')) {
-                  setNodes(nds => nds.filter(n => !n.selected));
+                  setNodes((nds) => nds.filter((n) => !n.selected));
                 }
               }}
               title="Delete Selected (Del)"
@@ -700,24 +719,24 @@ const Editor = () => {
         </ReactFlow>
       </main>
       {contextMenu && (
-        <div 
+        <div
           className="fixed bg-slate-800 border border-slate-700 shadow-2xl rounded-lg py-1 z-50 min-w-[150px]"
           style={{ top: contextMenu.top, left: contextMenu.left }}
         >
-          <button 
+          <button
             className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex justify-between items-center"
             onClick={() => { handleDuplicate(); setContextMenu(null); }}
           >
             Duplicate <span className="text-slate-500 text-xs">Ctrl+D</span>
           </button>
           <div className="h-px bg-slate-700 my-1"></div>
-          <button 
+          <button
             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 flex justify-between items-center"
             onClick={() => {
               takeSnapshot(nodes, edges);
               const nodeId = contextMenu.id;
-              setNodes(nds => nds.filter(n => n.id !== nodeId));
-              setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+              setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+              setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
               setContextMenu(null);
             }}
           >
@@ -728,11 +747,11 @@ const Editor = () => {
 
       {edgeContextMenu && (
         <div className="fixed bg-slate-800 border border-slate-700 shadow-2xl rounded-lg py-1 z-50 min-w-[150px]" style={{ top: edgeContextMenu.top, left: edgeContextMenu.left }}>
-          <button 
+          <button
             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 flex justify-between items-center"
             onClick={() => {
               takeSnapshot(nodes, edges);
-              setEdges(eds => eds.filter(e => e.id !== edgeContextMenu.id));
+              setEdges((eds) => eds.filter((e) => e.id !== edgeContextMenu.id));
               setEdgeContextMenu(null);
             }}
           >
@@ -746,18 +765,18 @@ const Editor = () => {
           <h2 className="text-white font-bold text-lg">Integrated Circuits Library</h2>
           <button onClick={() => document.getElementById('macro-modal').close()} className="text-slate-400 hover:text-white">✕</button>
         </div>
-        
+
         <div className="p-4 max-h-[400px] overflow-y-auto">
-          {['Arithmetic', 'Memory', 'Custom'].map(cat => {
-            const catCircuits = circuits.filter(c => c._id !== id && c.isMacro && c.category === cat);
+          {['Arithmetic', 'Memory', 'Custom'].map((cat) => {
+            const catCircuits = circuits.filter((c) => c._id !== id && c.isMacro && c.category === cat);
             if (catCircuits.length === 0) return null;
-            
+
             return (
               <div key={cat} className="mb-4">
                 <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">{cat}</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {catCircuits.map(circuit => (
-                    <button 
+                  {catCircuits.map((circuit) => (
+                    <button
                       key={circuit._id}
                       onClick={() => {
                         addMacro(circuit);
@@ -773,9 +792,9 @@ const Editor = () => {
               </div>
             );
           })}
-          {circuits.filter(c => c.isMacro && c._id !== id).length === 0 && (
+          {circuits.filter((c) => c.isMacro && c._id !== id).length === 0 && (
             <div className="text-center text-slate-500 py-8">
-              No macros published yet. <br/> Edit settings of your circuits to publish them.
+              No macros published yet. <br /> Edit settings of your circuits to publish them.
             </div>
           )}
         </div>
