@@ -74,7 +74,16 @@ export const useCircuitStore = create((set, get) => ({
   
   clearCurrentCircuit: () => set({ currentCircuit: null }),
 
-  toggleNodeValue: (nodeId) => {
-    
+  renameCircuit: async (id, updateData) => {
+    try {
+      await api.put(`/circuits/${id}`, updateData);
+      
+      set((state) => ({
+        currentCircuit: { ...state.currentCircuit, ...updateData },
+        circuits: state.circuits.map(c => c._id === id ? { ...c, ...updateData } : c),
+      }));
+    } catch (error) {
+      console.error('Failed to rename circuit:', error);
+    }
   },
 }));

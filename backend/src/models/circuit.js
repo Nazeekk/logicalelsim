@@ -13,6 +13,18 @@ const circuitSchema = new mongoose.Schema(
       trim: true,
       default: 'Untitled Circuit',
     },
+    isMacro: {
+      type: Boolean,
+      default: false,
+    },
+    category: {
+      type: String,
+      default: 'Custom',
+    },
+    description: {
+      type: String,
+      default: '',
+    },
     data: {
       nodes: {
         type: Array,
