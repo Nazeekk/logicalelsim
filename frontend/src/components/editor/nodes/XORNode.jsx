@@ -8,11 +8,11 @@ const XORNode = ({ data, selected }) => {
     <div className="relative flex items-center" style={{ transform: `rotate(${rotation}deg)` }}>
       <div className={`absolute -left-[6px] w-[15px] h-[60px] border-l-2 rounded-[50%] 
         ${isActive ? 'border-orange-400' : 'border-slate-600'}`}></div>
-      
+
       <div className={`relative w-20 h-16 border-2 flex items-center justify-center transition-all duration-200 bg-slate-800 shadow-lg
         ${isActive ? 'border-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.4)]' : 'border-slate-600'}
         ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
-      style={{
+        style={{
         borderLeftRadius: '20px',
         borderTopRightRadius: '30px',
         borderBottomRightRadius: '30px',

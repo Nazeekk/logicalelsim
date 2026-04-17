@@ -7,7 +7,6 @@ const SwitchNode = ({ id, data, selected }) => {
   const updateNodeLabel = useCircuitStore((state) => state.updateNodeLabel);
 
   const isActive = data?.value || false;
-  const rotation = data?.rotation || 0;
   const label = data?.label || '';
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState(label);
@@ -31,7 +30,7 @@ const SwitchNode = ({ id, data, selected }) => {
           className="w-16 h-4 text-[9px] text-center bg-slate-800 text-white border border-blue-500 rounded outline-none"
         />
       ) : (
-        <div 
+        <div
           onDoubleClick={() => setIsEditing(true)}
           className="text-[10px] font-bold text-slate-300 min-h-[14px] cursor-text px-1 hover:bg-slate-800 rounded truncate max-w-[60px]"
           title="Double click to rename"
@@ -40,22 +39,22 @@ const SwitchNode = ({ id, data, selected }) => {
         </div>
       )}
       <div className={`relative w-16 h-16 rounded-xl border-2 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-lg
-      ${isActive 
-      ? 'bg-emerald-500 border-emerald-400 shadow-emerald-500/30' 
+      ${isActive
+      ? 'bg-emerald-500 border-emerald-400 shadow-emerald-500/30'
       : 'bg-slate-700 border-slate-600 shadow-slate-900/50'
     }
       ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
-      onClick={() => toggleNodeValue(id)}
-      style={{ transform: `rotate(${data?.rotation || 0}deg)` }}
+        onClick={() => toggleNodeValue(id)}
+        style={{ transform: `rotate(${data?.rotation || 0}deg)` }}
       >
         <span className="text-white font-bold text-xs pointer-events-none select-none">
           {isActive ? 'ON' : 'OFF'}
         </span>
 
-        <Handle 
-          type="source" 
-          position={Position.Right} 
-          className={`w-3 h-3 !bg-slate-300 !border-2 ${isActive ? '!border-emerald-400' : '!border-slate-600'}`} 
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={`w-3 h-3 !bg-slate-300 !border-2 ${isActive ? '!border-emerald-400' : '!border-slate-600'}`}
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 export const evaluateCircuit = (nodes, edges, isMacro = false) => {
   const nodeMap = new Map();
-  
-  nodes.forEach(node => {
+
+  nodes.forEach((node) => {
     const nodeCopy = JSON.parse(JSON.stringify(node));
 
     if (nodeCopy.type !== 'switch' && nodeCopy.type !== 'macro') {
@@ -18,13 +18,13 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
     // } else {
     //   nodeCopy.data.value = false;
     // }
-    
-    nodeCopy._inputs = {}; 
-    
+
+    nodeCopy._inputs = {};
+
     nodeMap.set(nodeCopy.id, nodeCopy);
   });
 
-  const evaluatedEdges = edges.map(edge => ({
+  const evaluatedEdges = edges.map((edge) => ({
     ...edge,
     data: { ...edge.data, value: false },
     style: { stroke: '#94a3b8', strokeWidth: 2 },
@@ -39,7 +39,7 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
     changed = false;
     iterations++;
 
-    evaluatedEdges.forEach(edge => {
+    evaluatedEdges.forEach((edge) => {
       const sourceNode = nodeMap.get(edge.source);
       const targetNode = nodeMap.get(edge.target);
 
@@ -64,7 +64,7 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
             edge.animated = false;
           }
         }
- 
+
         changed = true;
       }
 
@@ -72,7 +72,7 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
       targetNode._inputs[handleId] = sourceValue;
     });
 
-    Array.from(nodeMap.values()).forEach(node => {
+    Array.from(nodeMap.values()).forEach((node) => {
       if (node.type === 'switch') return;
 
       let newValue = false;
@@ -83,15 +83,15 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
       else if (node.type === 'nand') newValue = !((node._inputs['a'] || false) && (node._inputs['b'] || false));
       else if (node.type === 'nor') newValue = !((node._inputs['a'] || false) || (node._inputs['b'] || false));
       else if (node.type === 'xor') newValue = (node._inputs['a'] || false) !== (node._inputs['b'] || false);
-      else if (node.type === 'xnor') newValue = (node._inputs['a'] || false) === (node._inputs['b'] || false); 
-      else if (node.type === 'bulb') newValue = Object.values(node._inputs).some(val => val === true);
+      else if (node.type === 'xnor') newValue = (node._inputs['a'] || false) === (node._inputs['b'] || false);
+      else if (node.type === 'bulb') newValue = Object.values(node._inputs).some((val) => val === true);
 
       else if (node.type === 'macro') {
         const internalNodes = node.data.circuit.nodes;
         const internalEdges = node.data.circuit.edges;
 
-        const switches = internalNodes.filter(n => n.type === 'switch').sort((a,b) => a.position.y - b.position.y);
-        const bulbs = internalNodes.filter(n => n.type === 'bulb').sort((a,b) => a.position.y - b.position.y);
+        const switches = internalNodes.filter((n) => n.type === 'switch').sort((a,b) => a.position.y - b.position.y);
+        const bulbs = internalNodes.filter((n) => n.type === 'bulb').sort((a,b) => a.position.y - b.position.y);
 
         switches.forEach((sw, i) => {
           sw.data.value = node._inputs[`in-${i}`] || false;
@@ -100,15 +100,15 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
         const { evaluatedNodes } = evaluateCircuit(internalNodes, internalEdges, true);
 
         bulbs.forEach((bulb, i) => {
-          const evaluatedBulb = evaluatedNodes.find(n => n.id === bulb.id);
+          const evaluatedBulb = evaluatedNodes.find((n) => n.id === bulb.id);
           const outVal = evaluatedBulb ? evaluatedBulb.data.value : false;
-          
+
           if (node.data.macroOutputs[`out-${i}`] !== outVal) {
             node.data.macroOutputs[`out-${i}`] = outVal;
             changed = true;
           }
         });
-        
+
         return;
       }
 
@@ -119,7 +119,7 @@ export const evaluateCircuit = (nodes, edges, isMacro = false) => {
     });
   }
 
-  const finalNodes = Array.from(nodeMap.values()).map(n => {
+  const finalNodes = Array.from(nodeMap.values()).map((n) => {
     const cleanNode = { ...n };
     delete cleanNode._inputs;
     return cleanNode;

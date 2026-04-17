@@ -3,14 +3,14 @@ import { Handle, Position } from 'reactflow';
 const MacroNode = ({ data, selected }) => {
   const circuit = data.circuit || { nodes: [] };
   const rotation = data?.rotation || 0;
-  
+
   const sortByIndexOrY = (a, b) => {
     const labelA = a.data.label || '';
     const labelB = b.data.label || '';
-    
+
     const matchA = labelA.match(/^(\d+):/);
     const matchB = labelB.match(/^(\d+):/);
-    
+
     if (matchA && matchB) {
       return parseInt(matchA[1]) - parseInt(matchB[1]);
     }
@@ -18,18 +18,18 @@ const MacroNode = ({ data, selected }) => {
   };
 
   const inputs = circuit.nodes
-    .filter(n => n.type === 'switch')
+    .filter((n) => n.type === 'switch')
     .sort(sortByIndexOrY);
-    
+
   const outputs = circuit.nodes
-    .filter(n => n.type === 'bulb')
+    .filter((n) => n.type === 'bulb')
     .sort(sortByIndexOrY);
 
   const maxPins = Math.max(inputs.length, outputs.length);
   const minHeight = Math.max(80, maxPins * 35);
 
   return (
-    <div 
+    <div
       className={`relative min-w-[140px] bg-slate-900 border-2 rounded-lg transition-all duration-200 shadow-xl
         ${selected ? 'border-blue-400 ring-2 ring-white ring-offset-2 ring-offset-slate-900' : 'border-slate-700'}
       `}
@@ -50,7 +50,7 @@ const MacroNode = ({ data, selected }) => {
                 position={Position.Left}
                 id={`in-${index}`}
                 className="w-2 h-2 !bg-slate-300 !border-slate-600 !-left-[9px]"
-                style={{ top: 'auto', bottom: 'auto' }} 
+                style={{ top: 'auto', bottom: 'auto' }}
               />
               <span className="text-[10px] font-mono font-bold text-slate-400 ml-1 truncate max-w-[40px]">
                 {inputNode.data.label?.replace(/^\d+:/, '') || `A${index}`}

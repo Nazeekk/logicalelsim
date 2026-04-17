@@ -8,7 +8,7 @@ const ORNode = ({ data, selected }) => {
     <div className={`relative w-20 h-16 border-2 flex items-center justify-center transition-all duration-200 bg-slate-800 shadow-lg
       ${isActive ? 'border-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.4)]' : 'border-slate-600'}
       ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}`}
-    style={{
+      style={{
       borderLeftRadius: '20px',
       borderTopRightRadius: '30px',
       borderBottomRightRadius: '30px',

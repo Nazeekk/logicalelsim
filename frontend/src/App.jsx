@@ -24,26 +24,26 @@ function App() {
     <BrowserRouter>
       <Toaster position='bottom-right' toastOptions={{ className: 'text-sm font-medium' }} />
       <Routes>
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <PublicRoute>
               <AuthPage />
             </PublicRoute>
-          } 
+          }
         />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route
           path="/editor/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute >
               <ReactFlowProvider>
                 <Editor />
               </ReactFlowProvider>

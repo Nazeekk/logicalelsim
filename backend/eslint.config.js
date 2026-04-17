@@ -19,6 +19,13 @@ module.exports = [
       'no-console': ['error', { 'allow': ['warn', 'error', 'info'] }],
       'no-unused-vars': 'warn',
       'indent': ['error', 2],
+      'no-multi-spaces': 'error',
+      'no-trailing-spaces': 'error',
+      'eol-last': ['error', 'always'],
+      'no-multiple-empty-lines': ['error', { 'max': 1, 'maxEOF': 0 }],
+      'arrow-parens': ['error', 'always'],
+      'object-curly-spacing': ['error', 'always'],
+      'array-bracket-spacing': ['error', 'never'],
     },
   },
 ];

@@ -31,8 +31,8 @@ class CircuitsController {
   async update(req, res) {
     try {
       const circuit = await circuitsService.updateCircuit(
-        req.params.id, 
-        req.user.id, 
+        req.params.id,
+        req.user.id,
         req.body,
       );
       res.status(200).json(circuit);
