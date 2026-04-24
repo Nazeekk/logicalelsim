@@ -1,11 +1,15 @@
 import { create } from 'zustand';
 import api from '../api/axios';
 
-export const useCircuitStore = create((set, _get) => ({
+export const useCircuitStore = create((set, get) => ({
   circuits: [],
   currentCircuit: null,
   isLoading: false,
   error: null,
+
+  getCircuitTemplate: (circuitId) => {
+    return get().circuits.find((c) => c._id === circuitId);
+  },
 
   fetchCircuits: async () => {
     set({ isLoading: true, error: null });
@@ -65,11 +69,24 @@ export const useCircuitStore = create((set, _get) => ({
 
   saveCircuitData: async (id, nodes, edges) => {
     try {
+      const cleanNodes = nodes.map((node) => {
+        const { width, height, selected, dragging, positionAbsolute, resizing, ...rest } = node;
+        return rest;
+      });
+
+      const cleanEdges = edges.map((edge) => {
+        const { selected, animated, style, ...rest } = edge;
+
+        if (rest.data) delete rest.data.value;
+        return rest;
+      });
+
       await api.put(`/circuits/${id}`, {
-        data: { nodes, edges },
+        data: { nodes: cleanNodes, edges: cleanEdges },
       });
     } catch (error) {
       console.error('Failed to save circuit:', error);
+      throw error;
     }
   },
 

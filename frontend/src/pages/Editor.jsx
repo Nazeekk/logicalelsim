@@ -21,6 +21,8 @@ import NORNode from '@/components/editor/nodes/NORNode';
 import XORNode from '@/components/editor/nodes/XORNode';
 import XNORNode from '@/components/editor/nodes/XNORNode';
 import MacroNode from '@/components/editor/nodes/MacroNode';
+import ClockNode from '@/components/editor/nodes/ClockNode.jsx';
+import HexDisplayNode from '@/components/editor/nodes/HexDisplayNode.jsx';
 
 import { useCircuitStore } from '../store/circuitStore';
 import { evaluateCircuit } from '@/utils/logicEngine';
@@ -39,6 +41,8 @@ const nodeTypes = {
   xor: XORNode,
   xnor: XNORNode,
   macro: MacroNode,
+  clock: ClockNode,
+  hex: HexDisplayNode,
 };
 
 const Editor = () => {
@@ -100,6 +104,8 @@ const Editor = () => {
           const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
             newNodes,
             eds,
+            false,
+            useCircuitStore.getState().getCircuitTemplate,
           );
           setTimeout(() => setNodes(evaluatedNodes), 0);
           return evaluatedEdges;
@@ -110,6 +116,30 @@ const Editor = () => {
     },
     [setNodes, setEdges, edges, nodes, takeSnapshot],
   );
+
+  const tickClock = useCallback((nodeId, newValue) => {
+    setNodes((nds) => {
+      const newNodes = nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, value: newValue } };
+        }
+        return node;
+      });
+
+      setEdges((eds) => {
+        const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
+          newNodes,
+          eds,
+          false,
+          useCircuitStore.getState().getCircuitTemplate,
+        );
+        setTimeout(() => setNodes(evaluatedNodes), 0);
+        return evaluatedEdges;
+      });
+
+      return newNodes;
+    });
+  }, [setNodes, setEdges]);
 
   const updateNodeLabel = useCallback((nodeId, newLabel) => {
     takeSnapshot(nodes, edges);
@@ -138,7 +168,8 @@ const Editor = () => {
   const addMacro = useCallback((savedCircuit) => {
     takeSnapshot(nodes, edges);
 
-    const circuitTemplate = JSON.parse(JSON.stringify(savedCircuit.data));
+    const inputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'switch').length;
+    const outputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'bulb').length;
 
     const newNode = {
       id: `macro-${Date.now()}`,
@@ -146,19 +177,21 @@ const Editor = () => {
       position: { x: Math.random() * 200 + 300, y: Math.random() * 200 + 100 },
       data: {
         name: savedCircuit.name,
-        circuit: circuitTemplate,
+        templateId: savedCircuit._id,
+        inputsCount,
+        outputsCount,
         macroOutputs: {},
       },
     };
 
     setNodes((nds) => {
       const newNodes = [...nds, newNode];
-      const { evaluatedNodes } = evaluateCircuit(newNodes, edges);
+      const { evaluatedNodes } = evaluateCircuit(newNodes, edges, false, useCircuitStore.getState().getCircuitTemplate);
       return evaluatedNodes;
     });
 
     toast.success(`${savedCircuit.name} imported!`);
-  }, [nodes, edges, takeSnapshot, setNodes]);
+  }, [takeSnapshot, edges, nodes]);
 
   useEffect(() => {
     if (circuits.length === 0) fetchCircuits();
@@ -177,6 +210,8 @@ const Editor = () => {
       const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
         initialNodes,
         initialEdges,
+        false,
+        useCircuitStore.getState().getCircuitTemplate,
       );
 
       setNodes(evaluatedNodes);
@@ -193,8 +228,8 @@ const Editor = () => {
   }, [currentCircuit]);
 
   useEffect(() => {
-    useCircuitStore.setState({ toggleNodeValue, updateNodeLabel });
-  }, [toggleNodeValue, updateNodeLabel]);
+    useCircuitStore.setState({ toggleNodeValue, updateNodeLabel, tickClock });
+  }, [toggleNodeValue, updateNodeLabel, tickClock]);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -281,7 +316,7 @@ const Editor = () => {
 
     const combinedEdges = [...edges.map((e) => ({ ...e, selected: false })), ...newEdges];
 
-    const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(combinedNodes, combinedEdges);
+    const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(combinedNodes, combinedEdges, false, useCircuitStore.getState().getCircuitTemplate);
 
     takeSnapshot(nodes, edges);
     setNodes(evaluatedNodes);
@@ -368,6 +403,8 @@ const Editor = () => {
           const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
             nodes,
             newEdges,
+            false,
+            useCircuitStore.getState().getCircuitTemplate,
           );
           setTimeout(() => setNodes(evaluatedNodes), 0);
           return evaluatedEdges;
@@ -387,6 +424,8 @@ const Editor = () => {
         const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
           nodes,
           newEdges,
+          false,
+          useCircuitStore.getState().getCircuitTemplate,
         );
         setTimeout(() => setNodes(evaluatedNodes), 0);
         return evaluatedEdges;
@@ -513,6 +552,20 @@ const Editor = () => {
             >
               <div className='w-3 h-3 rounded-full bg-yellow-400'></div>
               Bulb (Output)
+            </button>
+
+            <button
+              onClick={() => addNode('clock')}
+              className="bg-slate-700 hover:bg-slate-600 text-cyan-400 font-bold text-xs py-1.5 rounded transition border border-cyan-900/50"
+            >
+              Clock
+            </button>
+
+            <button
+              onClick={() => addNode('hex')}
+              className="bg-slate-700 hover:bg-slate-600 text-red-400 font-bold text-xs py-1.5 rounded transition border border-red-900/50"
+            >
+              HEX
             </button>
 
             <div className='h-px bg-slate-700 my-1'></div>
