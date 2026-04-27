@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const ANDNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -38,4 +39,4 @@ const ANDNode = ({ data, selected }) => {
   );
 };
 
-export default ANDNode;
+export default memo(ANDNode);

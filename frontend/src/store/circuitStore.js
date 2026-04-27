@@ -7,6 +7,62 @@ export const useCircuitStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
+  duplicateCircuit: async (id) => {
+    set({ isLoading: true });
+    try {
+      const originalRes = await api.get(`/circuits/${id}`);
+      const original = originalRes.data;
+
+      if (!original || !original.data) throw new Error('Source circuit empty');
+
+      const createRes = await api.post('/circuits', {
+        name: `${original.name} (Copy)`,
+        isMacro: original.isMacro || false,
+        category: original.category || 'Custom',
+      });
+      const newCircuit = createRes.data;
+
+      await api.put(`/circuits/${newCircuit._id}`, {
+        data: original.data,
+      });
+
+      const duplicatedWithData = { ...newCircuit, data: original.data };
+
+      set((state) => ({
+        circuits: [duplicatedWithData, ...state.circuits],
+        isLoading: false,
+      }));
+
+      return duplicatedWithData;
+    } catch (error) {
+      console.error('Duplication failed:', error);
+      set({
+        error: error.response?.data?.message || 'Failed to duplicate',
+        isLoading: false,
+      });
+      return null;
+    }
+  },
+
+  updateNodeData: (nodeId, newData) => {
+    set((state) => ({
+      currentCircuit: {
+        ...state.currentCircuit,
+        data: {
+          ...state.currentCircuit.data,
+          nodes: state.currentCircuit.data.nodes.map((node) =>
+            node.id === nodeId ? { ...node, data: { ...node.data, ...newData } } : node,
+          ),
+        },
+      },
+      circuits: state.circuits.map((c) =>
+        c._id === state.currentCircuit?._id
+          ? { ...c, data: { ...c.data, nodes: c.data.nodes.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n ) } }
+          : c,
+      ),
+    }));
+  },
+
   getCircuitTemplate: (circuitId) => {
     return get().circuits.find((c) => c._id === circuitId);
   },
@@ -70,16 +126,35 @@ export const useCircuitStore = create((set, get) => ({
   saveCircuitData: async (id, nodes, edges) => {
     try {
       const cleanNodes = nodes.map((node) => {
-        const { width, height, selected, dragging, positionAbsolute, resizing, ...rest } = node;
-        return rest;
+        return {
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: {
+            name: node.data.name,
+            label: node.data.label,
+            value: node.data.value,
+            rotation: node.data.rotation,
+            templateId: node.data.templateId,
+            inputsCount: node.data.inputsCount,
+            outputsCount: node.data.outputsCount,
+            frequency: node.data.frequency,
+            memory: node.data.memory,
+            asmCode: node.data.asmCode,
+            isaText: node.data.isaText,
+            archMode: node.data.archMode,
+            signalNames: node.data.signalNames,
+          },
+        };
       });
 
-      const cleanEdges = edges.map((edge) => {
-        const { selected, animated, style, ...rest } = edge;
-
-        if (rest.data) delete rest.data.value;
-        return rest;
-      });
+      const cleanEdges = edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
+      }));
 
       await api.put(`/circuits/${id}`, {
         data: { nodes: cleanNodes, edges: cleanEdges },

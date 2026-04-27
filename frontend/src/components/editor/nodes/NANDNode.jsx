@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const NANDNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -21,4 +22,4 @@ const NANDNode = ({ data, selected }) => {
     </div>
   );
 };
-export default NANDNode;
+export default memo(NANDNode);

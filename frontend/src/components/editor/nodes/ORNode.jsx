@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const ORNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -27,4 +28,4 @@ const ORNode = ({ data, selected }) => {
   );
 };
 
-export default ORNode;
+export default memo(ORNode);

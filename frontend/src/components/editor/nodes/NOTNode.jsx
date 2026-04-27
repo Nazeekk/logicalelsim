@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const NOTNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -29,4 +30,4 @@ const NOTNode = ({ data, selected }) => {
   );
 };
 
-export default NOTNode;
+export default memo(NOTNode);

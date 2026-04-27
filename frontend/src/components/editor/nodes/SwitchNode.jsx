@@ -1,6 +1,6 @@
 import { Handle, Position } from 'reactflow';
 import { useCircuitStore } from '../../../store/circuitStore';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 const SwitchNode = ({ id, data, selected }) => {
   const toggleNodeValue = useCircuitStore((state) => state.toggleNodeValue);
@@ -61,4 +61,4 @@ const SwitchNode = ({ id, data, selected }) => {
   );
 };
 
-export default SwitchNode;
+export default memo(SwitchNode);

@@ -7,7 +7,7 @@ export const useHistory = () => {
   const takeSnapshot = useCallback((nodes, edges) => {
     setPast((prev) => [
       ...prev,
-      { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) },
+      { nodes: structuredClone(nodes), edges: structuredClone(edges) },
     ].slice(-50));
 
     setFuture([]);

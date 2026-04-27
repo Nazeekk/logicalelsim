@@ -1,29 +1,33 @@
 import { Handle, Position } from 'reactflow';
 import { useCircuitStore } from '../../../store/circuitStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 
 const ClockNode = ({ id, data, selected }) => {
   const tickClock = useCircuitStore((state) => state.tickClock);
 
-  // Локальні стани компонента
+  const tickClockRef = useRef(tickClock);
+  useEffect(() => {
+    tickClockRef.current = tickClock;
+  }, [tickClock]);
+
   const isActive = data?.value || false;
   const [frequency, setFrequency] = useState(data?.frequency || 1);
   const [isRunning, setIsRunning] = useState(true);
 
   // Головний цикл годинника
   useEffect(() => {
-    if (!isRunning || !tickClock) return;
+    if (!isRunning) return;
 
     const halfPeriod = 1000 / (frequency * 2);
     let currentValue = isActive;
 
     const intervalId = setInterval(() => {
       currentValue = !currentValue;
-      tickClock(id, currentValue);
+      if (tickClockRef.current) tickClockRef.current(id, currentValue);
     }, halfPeriod);
 
     return () => clearInterval(intervalId);
-  }, [isRunning, frequency, id, tickClock, isActive]);
+  }, [isRunning, frequency, id, isActive]);
 
   const handleFreqChange = (e) => {
     let val = parseFloat(e.target.value);
@@ -78,7 +82,6 @@ const ClockNode = ({ id, data, selected }) => {
         <span className="text-[8px] text-slate-500">Hz</span>
       </div>
 
-      {/* Вихід */}
       <Handle
         type="source"
         position={Position.Right}
@@ -88,4 +91,4 @@ const ClockNode = ({ id, data, selected }) => {
   );
 };
 
-export default ClockNode;
+export default memo(ClockNode);

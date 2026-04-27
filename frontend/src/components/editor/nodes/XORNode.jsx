@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const XORNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -27,4 +28,4 @@ const XORNode = ({ data, selected }) => {
     </div>
   );
 };
-export default XORNode;
+export default memo(XORNode);

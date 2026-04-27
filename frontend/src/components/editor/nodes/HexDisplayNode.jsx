@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 
 const Segment = ({ id, className, activeSegments }) => {
@@ -11,13 +12,7 @@ const Segment = ({ id, className, activeSegments }) => {
 };
 
 const HexDisplayNode = ({ data, selected }) => {
-  const bit0 = data?.inputs?.['in-0'] ? 1 : 0;
-  const bit1 = data?.inputs?.['in-1'] ? 2 : 0;
-  const bit2 = data?.inputs?.['in-2'] ? 4 : 0;
-  const bit3 = data?.inputs?.['in-3'] ? 8 : 0;
-
-  const value = bit0 + bit1 + bit2 + bit3;
-
+  const value = typeof data?.value === 'number' ? data.value : 0;
   const hexChar = value.toString(16).toUpperCase();
 
   const segments = {
@@ -47,54 +42,18 @@ const HexDisplayNode = ({ data, selected }) => {
       style={{ transform: `rotate(${data?.rotation || 0}deg)` }}
     >
       <div className="flex flex-col justify-between h-[80px] mr-6">
-        <div
-          className="relative flex items-center h-full"
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="in-3"
-            className="w-2 h-2 !bg-slate-300"
-            style={{ top: 'auto', bottom: 'auto' }}
-          />
-          <span className="text-[8px] text-slate-500 ml-1">8</span>
-        </div>
-        <div
-          className="relative flex items-center h-full"
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="in-2"
-            className="w-2 h-2 !bg-slate-300"
-            style={{ top: 'auto', bottom: 'auto' }}
-          />
-          <span className="text-[8px] text-slate-500 ml-1">4</span>
-        </div>
-        <div
-          className="relative flex items-center h-full"
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="in-1"
-            className="w-2 h-2 !bg-slate-300"
-            style={{ top: 'auto', bottom: 'auto' }}
-          />
-          <span className="text-[8px] text-slate-500 ml-1">2</span>
-        </div>
-        <div
-          className="relative flex items-center h-full"
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="in-0"
-            className="w-2 h-2 !bg-slate-300"
-            style={{ top: 'auto', bottom: 'auto' }}
-          />
-          <span className="text-[8px] text-slate-500 ml-1">1</span>
-        </div>
+        {[3, 2, 1, 0].map((bit) => (
+          <div key={bit} className="relative flex items-center h-full">
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`in-${bit}`}
+              className="w-2 h-2 !bg-slate-300"
+              style={{ top: 'auto', bottom: 'auto' }}
+            />
+            <span className="text-[8px] text-slate-500 ml-1">{1 << bit}</span>
+          </div>
+        ))}
       </div>
 
       <div className="relative w-10 h-[72px] bg-black rounded p-1 border border-slate-800 shadow-inner overflow-hidden">
@@ -110,4 +69,4 @@ const HexDisplayNode = ({ data, selected }) => {
   );
 };
 
-export default HexDisplayNode;
+export default memo(HexDisplayNode);

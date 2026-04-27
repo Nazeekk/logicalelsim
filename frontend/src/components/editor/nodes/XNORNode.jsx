@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const XNORNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -28,4 +29,4 @@ const XNORNode = ({ data, selected }) => {
     </div>
   );
 };
-export default XNORNode;
+export default memo(XNORNode);

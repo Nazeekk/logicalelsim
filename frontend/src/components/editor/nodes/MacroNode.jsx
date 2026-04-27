@@ -1,6 +1,6 @@
 import { Handle, Position } from 'reactflow';
 import { useCircuitStore } from '../../../store/circuitStore';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 const MacroNode = ({ data, selected }) => {
   const getCircuitTemplate = useCircuitStore((state) => state.getCircuitTemplate);
@@ -88,4 +88,4 @@ const MacroNode = ({ data, selected }) => {
   );
 };
 
-export default MacroNode;
+export default memo(MacroNode);

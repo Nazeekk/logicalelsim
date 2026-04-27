@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.active-wire path {
+    stroke: #fbbf24 !important;
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+}
+.inactive-wire path {
+    stroke: #94a3b8 !important;
+    stroke-width: 2px !important;
+}

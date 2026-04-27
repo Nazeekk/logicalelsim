@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { memo } from 'react';
 
 const NORNode = ({ data, selected }) => {
   const isActive = data?.value || false;
@@ -28,4 +29,4 @@ const NORNode = ({ data, selected }) => {
     </div>
   );
 };
-export default NORNode;
+export default memo(NORNode);

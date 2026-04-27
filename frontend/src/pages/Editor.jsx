@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Background,
@@ -8,6 +8,7 @@ import ReactFlow, {
   addEdge,
   Panel,
   useUpdateNodeInternals,
+  reconnectEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -23,9 +24,13 @@ import XNORNode from '@/components/editor/nodes/XNORNode';
 import MacroNode from '@/components/editor/nodes/MacroNode';
 import ClockNode from '@/components/editor/nodes/ClockNode.jsx';
 import HexDisplayNode from '@/components/editor/nodes/HexDisplayNode.jsx';
+import ConstantNode from '@/components/editor/nodes/ConstantNode.jsx';
+import DataRomNode from '@/components/editor/nodes/DataRomNode.jsx';
+import Display8BitNode from '@/components/editor/nodes/Display8BitNode.jsx';
+import LoggerNode from '@/components/editor/nodes/LoggerNode.jsx';
 
 import { useCircuitStore } from '../store/circuitStore';
-import { evaluateCircuit } from '@/utils/logicEngine';
+import { clearSimulationCache, Simulator } from '@/utils/logicEngine';
 import toast from 'react-hot-toast';
 
 import { useHistory } from '@/hooks/useHistory';
@@ -43,6 +48,10 @@ const nodeTypes = {
   macro: MacroNode,
   clock: ClockNode,
   hex: HexDisplayNode,
+  constant: ConstantNode,
+  data_rom: DataRomNode,
+  display8bit: Display8BitNode,
+  logger: LoggerNode,
 };
 
 const Editor = () => {
@@ -72,6 +81,125 @@ const Editor = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState(null);
 
+  const [switchTargetId, setSwitchTargetId] = useState(null);
+  const [isReplaceMode, setIsReplaceMode] = useState(false);
+
+  const [isSimulating, setIsSimulating] = useState(false);
+  const simulatorRef = useRef(null);
+  const syncIntervalRef = useRef(null);
+
+  const edgeUpdateSuccessful = useRef(true);
+  const updatingEdgeRef = useRef(null);
+
+  const lastRenderTime = useRef(0);
+  const pendingUpdateRef = useRef(null);
+
+  const toggleSimulation = useCallback(() => {
+    if (isSimulating) {
+      setIsSimulating(false);
+      clearInterval(syncIntervalRef.current);
+      simulatorRef.current = null;
+      toast('Simulation stopped', { icon: '🛑' });
+    } else {
+      try {
+        simulatorRef.current = new Simulator(
+          nodes,
+          edges,
+          useCircuitStore.getState().getCircuitTemplate,
+        );
+        setIsSimulating(true);
+        toast('Simulation started!', { icon: '🚀' });
+
+        syncIntervalRef.current = setInterval(() => {
+          if (!simulatorRef.current) return;
+
+          const { visualNodesValues, activeEdges, visualMacroOutputs } = simulatorRef.current.getVisualState();
+
+          setNodes((currentNodes) => currentNodes.map((n) => {
+            let newData = { ...n.data };
+            let isChanged = false;
+
+            if (visualMacroOutputs[n.id]) {
+              const currentOutputsStr = JSON.stringify(n.data.macroOutputs || {});
+              const newOutputsStr = JSON.stringify(visualMacroOutputs[n.id]);
+              if (currentOutputsStr !== newOutputsStr) {
+                newData.macroOutputs = visualMacroOutputs[n.id];
+                isChanged = true;
+              }
+            }
+
+            if (visualNodesValues[n.id] !== undefined && visualNodesValues[n.id] !== newData.value) {
+              newData.value = visualNodesValues[n.id];
+              isChanged = true;
+            }
+
+            return isChanged ? { ...n, data: newData } : n;
+          }));
+
+          setEdges((currentEdges) => currentEdges.map((e) => {
+            const isActive = activeEdges.has(e.id);
+            const currentIsActive = e.animated;
+
+            if (isActive !== currentIsActive) {
+              return {
+                ...e,
+                animated: isActive,
+                className: isActive ? 'active-wire' : 'inactive-wire',
+              };
+            }
+            return e;
+          }));
+        }, 35);
+
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to compile circuit');
+      }
+    }
+  }, [isSimulating, nodes, edges]);
+
+  const recompileIfSimulating = useCallback((newNodes, newEdges) => {
+    if (isSimulating) {
+      try {
+        simulatorRef.current = new Simulator(
+          newNodes,
+          newEdges,
+          useCircuitStore.getState().getCircuitTemplate,
+        );
+      } catch (error) {
+        console.error('Failed to recompile on the fly:', error);
+        setIsSimulating(false);
+        toast.error('Simulation stopped due to structural error');
+      }
+    }
+  }, [isSimulating]);
+
+  const onEdgeUpdateStart = useCallback((event, edge) => {
+    edgeUpdateSuccessful.current = false;
+    updatingEdgeRef.current = edge;
+  }, []);
+
+  const onEdgeUpdate = useCallback((oldEdge, newConnection) => {
+    edgeUpdateSuccessful.current = true;
+    setEdges((els) => {
+      const updatedEdges = reconnectEdge(oldEdge, newConnection, els);
+      recompileIfSimulating(nodes, updatedEdges);
+      return updatedEdges;
+    });
+  }, [nodes, recompileIfSimulating]);
+
+  const onEdgeUpdateEnd = useCallback((_, edge) => {
+    if (!edgeUpdateSuccessful.current) {
+      setEdges((eds) => {
+        const remainingEdges = eds.filter((e) => e.id !== edge.id);
+        recompileIfSimulating(nodes, remainingEdges);
+        return remainingEdges;
+      });
+    }
+    updatingEdgeRef.current = null;
+    edgeUpdateSuccessful.current = true;
+  }, [nodes, recompileIfSimulating]);
+
   const isValidConnection = useCallback(
     (connection) => {
       if (connection.source === connection.target) {
@@ -81,7 +209,8 @@ const Editor = () => {
       const isTargetOccupied = edges.some(
         (edge) =>
           edge.target === connection.target &&
-          edge.targetHandle === connection.targetHandle,
+          edge.targetHandle === connection.targetHandle &&
+          edge.id !== updatingEdgeRef.current?.id,
       );
 
       return !isTargetOccupied;
@@ -89,56 +218,38 @@ const Editor = () => {
     [edges],
   );
 
-  const toggleNodeValue = useCallback(
-    (nodeId) => {
-      takeSnapshot(nodes, edges);
-      setNodes((nds) => {
-        const newNodes = nds.map((node) => {
-          if (node.id === nodeId) {
-            return { ...node, data: { ...node.data, value: !node.data.value } };
-          }
-          return node;
-        });
-
-        setEdges((eds) => {
-          const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
-            newNodes,
-            eds,
-            false,
-            useCircuitStore.getState().getCircuitTemplate,
-          );
-          setTimeout(() => setNodes(evaluatedNodes), 0);
-          return evaluatedEdges;
-        });
-
-        return newNodes;
-      });
-    },
-    [setNodes, setEdges, edges, nodes, takeSnapshot],
-  );
+  const toggleNodeValue = useCallback((nodeId) => {
+    if (isSimulating && simulatorRef.current) {
+      const currentNode = nodes.find((n) => n.id === nodeId);
+      const newValue = !currentNode?.data?.value;
+      simulatorRef.current.setInputValue(nodeId, newValue);
+    } else {
+      setNodes((nds) => nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, value: !n.data.value } } : n,
+      ));
+    }
+  }, [isSimulating, nodes]);
 
   const tickClock = useCallback((nodeId, newValue) => {
-    setNodes((nds) => {
-      const newNodes = nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, value: newValue } };
-        }
-        return node;
-      });
+    if (isSimulating && simulatorRef.current) {
+      simulatorRef.current.setInputValue(nodeId, newValue);
+    } else {
+      setNodes((nds) => nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, value: newValue } } : n,
+      ));
+    }
+  }, [isSimulating]);
 
-      setEdges((eds) => {
-        const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
-          newNodes,
-          eds,
-          false,
-          useCircuitStore.getState().getCircuitTemplate,
-        );
-        setTimeout(() => setNodes(evaluatedNodes), 0);
-        return evaluatedEdges;
-      });
-
-      return newNodes;
-    });
+  useEffect(() => {
+    const flushInterval = setInterval(() => {
+      if (pendingUpdateRef.current) {
+        setNodes([...pendingUpdateRef.current.nodes]);
+        setEdges([...pendingUpdateRef.current.edges]);
+        pendingUpdateRef.current = null;
+        lastRenderTime.current = performance.now();
+      }
+    }, 100);
+    return () => clearInterval(flushInterval);
   }, [setNodes, setEdges]);
 
   const updateNodeLabel = useCallback((nodeId, newLabel) => {
@@ -165,39 +276,75 @@ const Editor = () => {
     setNodes((nds) => [...nds, newNode]);
   };
 
-  const addMacro = useCallback((savedCircuit) => {
-    takeSnapshot(nodes, edges);
+  const handleMacroAction = useCallback((savedCircuit) => {
+    if (isReplaceMode && switchTargetId) {
+      // РЕЖИМ ЗАМІНИ
+      const inputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'switch').length;
+      const outputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'bulb').length;
 
-    const inputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'switch').length;
-    const outputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'bulb').length;
+      setNodes((nds) => {
+        const updatedNodes = nds.map((node) => {
+          if (node.id === switchTargetId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                name: savedCircuit.name,
+                templateId: savedCircuit._id,
+                inputsCount,
+                outputsCount,
+                macroOutputs: {}, // скидаємо стан виходів
+              },
+            };
+          }
+          return node;
+        });
 
-    const newNode = {
-      id: `macro-${Date.now()}`,
-      type: 'macro',
-      position: { x: Math.random() * 200 + 300, y: Math.random() * 200 + 100 },
-      data: {
-        name: savedCircuit.name,
-        templateId: savedCircuit._id,
-        inputsCount,
-        outputsCount,
-        macroOutputs: {},
-      },
-    };
+        // Перекомпілюємо симуляцію з новими шаблонами
+        recompileIfSimulating(updatedNodes, edges);
+        return updatedNodes;
+      });
 
-    setNodes((nds) => {
-      const newNodes = [...nds, newNode];
-      const { evaluatedNodes } = evaluateCircuit(newNodes, edges, false, useCircuitStore.getState().getCircuitTemplate);
-      return evaluatedNodes;
-    });
+      toast.success(`Switched to ${savedCircuit.name}`);
+    } else {
+      // РЕЖИМ ДОДАВАННЯ (твій старий код addMacro)
+      takeSnapshot(nodes, edges);
+      const inputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'switch').length;
+      const outputsCount = savedCircuit.data.nodes.filter((n) => n.type === 'bulb').length;
 
-    toast.success(`${savedCircuit.name} imported!`);
-  }, [takeSnapshot, edges, nodes]);
+      const newNode = {
+        id: `macro-${Date.now()}`,
+        type: 'macro',
+        position: { x: Math.random() * 200 + 300, y: Math.random() * 200 + 100 },
+        data: {
+          name: savedCircuit.name,
+          templateId: savedCircuit._id,
+          inputsCount,
+          outputsCount,
+          macroOutputs: {},
+        },
+      };
+
+      setNodes((nds) => {
+        const newNodes = [...nds, newNode];
+        recompileIfSimulating(newNodes, edges);
+        return newNodes;
+      });
+      toast.success(`${savedCircuit.name} imported!`);
+    }
+
+    // Скидаємо стани після дії
+    setIsReplaceMode(false);
+    setSwitchTargetId(null);
+    document.getElementById('macro-modal').close();
+  }, [isReplaceMode, switchTargetId, nodes, edges, recompileIfSimulating, takeSnapshot]);
 
   useEffect(() => {
     if (circuits.length === 0) fetchCircuits();
   }, [circuits.length, fetchCircuits]);
 
   useEffect(() => {
+    clearSimulationCache();
     fetchCircuitById(id);
     return () => clearCurrentCircuit();
   }, [id, fetchCircuitById, clearCurrentCircuit]);
@@ -207,15 +354,19 @@ const Editor = () => {
       const initialNodes = currentCircuit.data.nodes || [];
       const initialEdges = currentCircuit.data.edges || [];
 
-      const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
-        initialNodes,
-        initialEdges,
-        false,
-        useCircuitStore.getState().getCircuitTemplate,
-      );
+      const resetNodes = initialNodes.map((n) => ({
+        ...n,
+        data: { ...n.data, value: false },
+      }));
+      const resetEdges = initialEdges.map((e) => ({
+        ...e,
+        animated: false,
+        className: 'inactive-wire',
+      }));
 
-      setNodes(evaluatedNodes);
-      setEdges(evaluatedEdges);
+      setNodes(resetNodes);
+      setEdges(resetEdges);
+      setIsSimulating(false);
     }
   }, [currentCircuit]);
 
@@ -227,9 +378,28 @@ const Editor = () => {
     }
   }, [currentCircuit]);
 
+  const updateNodeDataLocal = useCallback((nodeId, newData) => {
+    takeSnapshot(nodes, edges);
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, ...newData } };
+        }
+        return node;
+      }),
+    );
+
+    setTimeout(() => {
+      setNodes((currentNodes) => {
+        recompileIfSimulating(currentNodes, edges);
+        return currentNodes;
+      });
+    }, 0);
+  }, [nodes, edges, takeSnapshot, recompileIfSimulating]);
+
   useEffect(() => {
-    useCircuitStore.setState({ toggleNodeValue, updateNodeLabel, tickClock });
-  }, [toggleNodeValue, updateNodeLabel, tickClock]);
+    useCircuitStore.setState({ toggleNodeValue, updateNodeLabel, tickClock, updateNodeData: updateNodeDataLocal });
+  }, [toggleNodeValue, updateNodeLabel, tickClock, updateNodeDataLocal]);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -316,14 +486,14 @@ const Editor = () => {
 
     const combinedEdges = [...edges.map((e) => ({ ...e, selected: false })), ...newEdges];
 
-    const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(combinedNodes, combinedEdges, false, useCircuitStore.getState().getCircuitTemplate);
-
     takeSnapshot(nodes, edges);
-    setNodes(evaluatedNodes);
-    setEdges(evaluatedEdges);
+    setNodes(combinedNodes);
+    setEdges(combinedEdges);
+
+    recompileIfSimulating(combinedNodes, combinedEdges);
 
     toast.success(`Duplicated ${newNodes.length} items`);
-  }, [nodes, edges, takeSnapshot, setNodes, setEdges]);
+  }, [nodes, edges, takeSnapshot, setNodes, setEdges, recompileIfSimulating]);
 
   const handleSettingsSubmit = async () => {
     setIsRenaming(false);
@@ -395,25 +565,15 @@ const Editor = () => {
     (changes) => {
       setEdges((eds) => {
         const newEdges = applyEdgeChanges(changes, eds);
+        const isDeleteEvent = changes.some((change) => change.type === 'remove');
 
-        const isDeleteEvent = changes.some(
-          (change) => change.type === 'remove',
-        );
         if (isDeleteEvent) {
-          const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
-            nodes,
-            newEdges,
-            false,
-            useCircuitStore.getState().getCircuitTemplate,
-          );
-          setTimeout(() => setNodes(evaluatedNodes), 0);
-          return evaluatedEdges;
+          recompileIfSimulating(nodes, newEdges);
         }
-
         return newEdges;
       });
     },
-    [nodes, setNodes],
+    [nodes, recompileIfSimulating],
   );
 
   const onConnect = useCallback(
@@ -421,17 +581,13 @@ const Editor = () => {
       takeSnapshot(nodes, edges);
       setEdges((eds) => {
         const newEdges = addEdge(connection, eds);
-        const { evaluatedNodes, evaluatedEdges } = evaluateCircuit(
-          nodes,
-          newEdges,
-          false,
-          useCircuitStore.getState().getCircuitTemplate,
-        );
-        setTimeout(() => setNodes(evaluatedNodes), 0);
-        return evaluatedEdges;
+
+        recompileIfSimulating(nodes, newEdges);
+
+        return newEdges;
       });
     },
-    [nodes, setNodes, setEdges, edges, takeSnapshot],
+    [nodes, edges, takeSnapshot, recompileIfSimulating],
   );
 
   const handleSave = async () => {
@@ -516,6 +672,11 @@ const Editor = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          snapToGrid={true}
+          onEdgeUpdateStart={onEdgeUpdateStart}
+          onEdgeUpdate={onEdgeUpdate}
+          onEdgeUpdateEnd={onEdgeUpdateEnd}
+          edgeUpdaterRadius={10}
           onNodeDragStart={onNodeDragStart}
           onNodeContextMenu={onNodeContextMenu}
           onEdgeContextMenu={onEdgeContextMenu}
@@ -547,6 +708,13 @@ const Editor = () => {
             </button>
 
             <button
+              onClick={() => addNode('constant')}
+              className="bg-slate-700 hover:bg-slate-600 text-red-400 font-bold text-xs py-1.5 rounded transition border border-red-900/50"
+            >
+              1/0 (VCC)
+            </button>
+
+            <button
               onClick={() => addNode('bulb')}
               className='flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg transition text-sm text-left border border-slate-600'
             >
@@ -566,6 +734,27 @@ const Editor = () => {
               className="bg-slate-700 hover:bg-slate-600 text-red-400 font-bold text-xs py-1.5 rounded transition border border-red-900/50"
             >
               HEX
+            </button>
+
+            <button
+              onClick={() => addNode('data_rom', { label: '00 00 00 00' })}
+              className="bg-slate-700 hover:bg-slate-600 text-blue-400 font-bold text-xs py-1.5 rounded border border-blue-900/50"
+            >
+              DATA ROM
+            </button>
+
+            <button
+              onClick={() => addNode('display8bit')}
+              className="bg-slate-700 hover:bg-slate-600 text-cyan-400 font-bold text-xs py-1.5 rounded border border-cyan-900/50"
+            >
+              8-BIT DISPLAY
+            </button>
+
+            <button
+              onClick={() => addNode('logger')}
+              className="bg-slate-700 hover:bg-slate-600 text-fuchsia-400 font-bold text-xs py-1.5 rounded border border-fuchsia-900/50"
+            >
+              LOGIC ANALYZER
             </button>
 
             <div className='h-px bg-slate-700 my-1'></div>
@@ -627,7 +816,10 @@ const Editor = () => {
 
             <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1 px-1">Macro Library</div>
             <button
-              onClick={() => document.getElementById('macro-modal').showModal()}
+              onClick={() => {
+                setIsReplaceMode(false);
+                document.getElementById('macro-modal').showModal();
+              }}
               className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 font-bold px-3 py-2 rounded-lg transition text-sm flex justify-center items-center gap-2"
             >
               <svg
@@ -707,6 +899,21 @@ const Editor = () => {
             </button>
             <div className="w-px bg-slate-700 mx-1 my-1"></div>
             <button
+              onClick={toggleSimulation}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition shadow-lg ${
+                isSimulating
+                  ? 'bg-red-500/20 text-red-400 border border-red-500 hover:bg-red-500/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500 hover:bg-emerald-500/40'
+              }`}
+            >
+              {isSimulating ? (
+                <><span>🛑</span> Stop Sim</>
+              ) : (
+                <><span>🚀</span> Run Sim</>
+              )}
+            </button>
+            <div className="w-px bg-slate-700 mx-1 my-1"></div>
+            <button
               onClick={handleDuplicate}
               title="Duplicate Selected (Ctrl+D)"
               className="p-2 text-blue-400 hover:text-blue-300 hover:bg-slate-700 rounded transition"
@@ -776,6 +983,23 @@ const Editor = () => {
           className="fixed bg-slate-800 border border-slate-700 shadow-2xl rounded-lg py-1 z-50 min-w-[150px]"
           style={{ top: contextMenu.top, left: contextMenu.left }}
         >
+          {nodes.find((n) => n.id === contextMenu.id)?.type === 'macro' && (
+            <>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-slate-700 flex justify-between items-center"
+                onClick={() => {
+                  setSwitchTargetId(contextMenu.id);
+                  setIsReplaceMode(true);
+                  setContextMenu(null);
+                  document.getElementById('macro-modal').showModal();
+                }}
+              >
+                Replace Template <span className="text-[10px] bg-blue-900/50 px-1 rounded">Swap</span>
+              </button>
+              <div className="h-px bg-slate-700 my-1"></div>
+            </>
+          )}
+
           <button
             className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex justify-between items-center"
             onClick={() => { handleDuplicate(); setContextMenu(null); }}
@@ -832,13 +1056,13 @@ const Editor = () => {
                     <button
                       key={circuit._id}
                       onClick={() => {
-                        addMacro(circuit);
+                        handleMacroAction(circuit);
                         document.getElementById('macro-modal').close();
                       }}
                       className="flex justify-between items-center bg-slate-900 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition border border-slate-700 hover:border-blue-500"
                     >
                       <span className="truncate">{circuit.name}</span>
-                      <span className="text-[9px] bg-blue-900/50 text-blue-300 px-1.5 rounded border border-blue-800">Add</span>
+                      <span className="text-[9px] bg-blue-900/50 text-blue-300 px-1.5 rounded border border-blue-800">{isReplaceMode ? 'Replace' : 'Add'}</span>
                     </button>
                   ))}
                 </div>

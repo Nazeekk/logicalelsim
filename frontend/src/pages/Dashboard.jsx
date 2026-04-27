@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, logout } = useAuthStore();
-  const { circuits, isLoading, fetchCircuits, createCircuit, deleteCircuit } = useCircuitStore();
+  const { circuits, isLoading, fetchCircuits, createCircuit, deleteCircuit, duplicateCircuit } = useCircuitStore();
   const navigate = useNavigate();
 
   const [newCircuitName, setNewCircuitName] = useState('');
@@ -111,20 +111,38 @@ const Dashboard = () => {
                     <h3 className="text-lg font-bold text-slate-800 truncate pr-4">
                       {circuit.name}
                     </h3>
-                    <button
-                      onClick={(e) => {
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          duplicateCircuit(circuit._id);
+                        }}
+                        className="text-slate-400 hover:text-blue-500 transition"
+                        title="Duplicate (Create Copy)"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
                         e.stopPropagation();
                         if(window.confirm('Are you sure you want to delete this circuit?')) {
                           deleteCircuit(circuit._id);
                         }
                       }}
-                      className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-                      title="Delete"
+                        className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                        title="Delete"
                     >
-                      ✕
-                    </button>
+                        ✕
+                      </button>
+                    </div>
                   </div>
-
                   <div className="text-xs text-slate-500 mb-6 flex flex-col gap-1">
                     <span>Created: {formatDate(circuit.createdAt)}</span>
                     <span>Updated: {formatDate(circuit.updatedAt)}</span>
