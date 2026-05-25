@@ -842,8 +842,8 @@ const Editor = () => {
 
             {showAdvancedGates && (
               <>
-                <div className="h-px bg-slate-700 my-1"></div>
-                <div className="grid grid-cols-2 gap-1">
+                <div className='h-px bg-slate-700 my-1'></div>
+                <div className='grid grid-cols-2 gap-1'>
                   <button
                     onClick={() => addNode('hex')}
                     className='bg-slate-700 hover:bg-slate-600 text-red-400 font-bold text-xs py-1.5 rounded transition border border-red-900/50'
@@ -852,7 +852,9 @@ const Editor = () => {
                   </button>
 
                   <button
-                    onClick={() => addNode('data_rom', { label: '00 00 00 00' })}
+                    onClick={() =>
+                      addNode('data_rom', { label: '00 00 00 00' })
+                    }
                     className='bg-slate-700 hover:bg-slate-600 text-blue-400 font-bold text-xs py-1.5 rounded border border-blue-900/50'
                   >
                     DATA ROM
@@ -970,6 +972,17 @@ const Editor = () => {
               className='flex items-center justify-center gap-2 bg-red-900/50 hover:bg-red-800/80 text-red-200 px-3 py-2 rounded-lg transition text-sm font-bold border border-red-800/50'
             >
               Clear Board
+            </button>
+
+            <button
+              onClick={() => {
+                throw new Error(
+                  'Sentry Alert Test Error: Something went wrong in LogicSim!',
+                );
+              }}
+              className='w-full bg-red-900/40 hover:bg-red-800/80 text-red-200 px-3 py-2 rounded-lg transition text-xs font-bold border border-red-800/50 flex items-center justify-center gap-2'
+            >
+              💥 Break the world
             </button>
 
             <div className='text-[10px] text-slate-500 text-center mt-2'>
