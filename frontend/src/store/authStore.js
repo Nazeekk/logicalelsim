@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../api/axios';
+import * as Sentry from '@sentry/react';
 
 export const useAuthStore = create((set) => ({
   user: JSON.parse(localStorage.getItem('user')) || null,
@@ -34,6 +35,13 @@ export const useAuthStore = create((set) => ({
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
 
+      Sentry.setUser({
+        id: user.id,
+        email: user.email,
+        segment: 'premium_developer',
+      });
+      Sentry.setTag('user_group', 'PP-32');
+
       set({ user, token, isLoading: false });
     } catch (error) {
       set({
@@ -46,6 +54,9 @@ export const useAuthStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+
+    Sentry.setUser(null);
+
     set({ user: null, token: null });
   },
 }));

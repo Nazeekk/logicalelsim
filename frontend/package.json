@@ -13,6 +13,7 @@
     "test:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@sentry/react": "^10.53.1",
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.15.0",
     "posthog-js": "^1.376.0",
