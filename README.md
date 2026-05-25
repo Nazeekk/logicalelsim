@@ -1,3 +1,5 @@
+[![CI/CD Pipeline](https://github.com/Nazeekk/logicalelsim/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/Nazeekk/logicalelsim/actions/workflows/ci-cd.yml)
+
 # Logic Circuit Simulator
 
 Interactive logic gate simulator built with React Flow, Express.js, and MongoDB.
