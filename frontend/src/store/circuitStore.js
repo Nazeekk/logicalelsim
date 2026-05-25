@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../api/axios';
+import posthog from 'posthog-js';
 
 export const useCircuitStore = create((set, get) => ({
   circuits: [],
@@ -85,6 +86,11 @@ export const useCircuitStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/circuits', { name });
+      posthog.capture('circuit_created', {
+        circuit_name: name,
+        is_macro: false,
+        source: 'dashboard_button',
+      });
       set((state) => ({
         circuits: [response.data, ...state.circuits],
         isLoading: false,
@@ -102,6 +108,10 @@ export const useCircuitStore = create((set, get) => ({
   deleteCircuit: async (id) => {
     try {
       await api.delete(`/circuits/${id}`);
+      posthog.capture('circuit_deleted', {
+        circuit_id: id,
+        reason: 'manual_cleanup',
+      });
       set((state) => ({
         circuits: state.circuits.filter((circuit) => circuit._id !== id),
       }));
